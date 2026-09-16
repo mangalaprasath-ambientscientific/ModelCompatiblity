@@ -709,13 +709,13 @@ function coreInitError(cls, cfg, rawCfg) {
   /* GaussianDropout range-checks its rate in __init__ and words it differently
      from Dropout, so it cannot just join DROPOUT_RATE_LAYERS.  AlphaDropout is
      deliberately absent: it stores its rate without checking it. */
-  if (c === 'GaussianDropout') {
-    const r = cfg.rate;
-    if (typeof r === 'number' && !(r >= 0 && r <= 1)) {
-      return 'Invalid value received for argument `rate`. Expected a float value between 0 and 1. Received: rate='
-        + rawNum(rawCfg, 'rate', r);
-    }
-  }
+  // if (c === 'GaussianDropout') {
+  //   const r = cfg.rate;
+  //   if (typeof r === 'number' && !(r >= 0 && r <= 1)) {
+  //     return 'Invalid value received for argument `rate`. Expected a float value between 0 and 1. Received: rate='
+  //       + rawNum(rawCfg, 'rate', r);
+  //   }
+  // }
   if (c === 'GaussianNoise') {
     const sd = cfg.stddev;
     if (typeof sd === 'number' && !(sd >= 0)) {
