@@ -90,14 +90,18 @@ function readH5(arrayBuffer, filename) {
    zips them against the layer's symbolic weights POSITIONALLY - it never matches
    them up by name. */
 function readWeights(f) {
-  const per = {};
-  let root;
+  let root = null;
   try {
     root = f.get('model_weights');
   } catch (e) {
-    return per;
+    root = null;
   }
-  if (!root || !root.keys) return per;
+  /* load_model_from_hdf5() indexes f["model_weights"] unconditionally, so a file
+     without that group is a hard load failure, not a model with no weights.
+     null says "the group is not there"; {} says "it is there and declares
+     nothing", which is a different error further down. */
+  if (!root || !root.keys) return null;
+  const per = {};
 
   const asList = (v) => {
     if (v === null || v === undefined) return [];
@@ -112,27 +116,14 @@ function readWeights(f) {
     });
   };
 
-  /* only used when layer_names is absent, e.g. a file written by hand */
-  const walk = (node, top) => {
-    for (const k of node.keys || []) {
-      let child;
-      try {
-        child = node.get(k);
-      } catch (e) {
-        continue;
-      }
-      if (!child) continue;
-      if (child.shape !== undefined && child.dtype !== undefined) record(top, k, child);
-      else if (child.keys) walk(child, top);
-    }
-  };
-
+  /* load_weights_from_hdf5_group() reads the `layer_names` attribute and NOTHING
+     else: a group the attribute does not mention is invisible to keras, and a
+     file with no attribute at all presents ZERO saved layers, which the layer
+     count guard below then reports.  Walking root.keys as a fallback made the
+     port load a file the backend refuses. */
   const declared = asList((root.attrs || {}).layer_names);
-  const names = declared.length
-    ? declared
-    : (root.keys || []).filter((k) => k !== 'top_level_model_weights');
 
-  for (const layerName of names) {
+  for (const layerName of declared) {
     let g;
     try {
       g = root.get(layerName);
@@ -142,12 +133,8 @@ function readWeights(f) {
     if (!g || !g.keys) continue;
 
     const wnames = asList((g.attrs || {}).weight_names);
-    if (!wnames.length) {
-      /* keras' filtered_layer_names drops a group whose weight_names is empty */
-      if (declared.length) continue;
-      walk(g, layerName);
-      continue;
-    }
+    /* keras' filtered_layer_names drops a group whose weight_names is empty */
+    if (!wnames.length) continue;
     for (const wn of wnames) {
       let d = null;
       try {
@@ -252,8 +239,17 @@ const NON_INPUT_LAYERS = [].concat(POOL_LAYERS, ACT_LAYERS, NORM_LAYERS, [
   'Dropout', 'SpatialDropout1D', 'SpatialDropout2D', 'AlphaDropout', 'GaussianDropout', 'ActivityRegularization',
 ]);
 
-/* keras.activations.linear / relu / tf.nn.leaky_relu / softmax / sigmoid / tanh */
-const SUPP_ACTIVATION = ['linear', 'relu', 'leaky_relu', 'softmax', 'sigmoid', 'tanh'];
+/* keras.activations.linear / relu / softmax / sigmoid / tanh.
+
+   supp_activation (Model_Compatibility_47.py:38-43) holds tf.nn.leaky_relu as a
+   FUNCTION OBJECT.  A config can only ever carry the NAME "leaky_relu", and
+   keras.activations.get('leaky_relu') never returns that same object - on keras
+   2.15 the name does not resolve at all - so the backend fails such a model
+   either way, by a load error or by activation_check().  Listing the name here
+   made the port pass a model the python rejects.
+
+   LeakyReLU as a LAYER is unaffected: it is matched through SUPP_ACT_CLASSES. */
+const SUPP_ACTIVATION = ['linear', 'relu', 'softmax', 'sigmoid', 'tanh'];
 /* supp_activation_classes: LeakyReLU (both module paths), ReLU, Softmax */
 const SUPP_ACT_CLASSES = ['LeakyReLU', 'ReLU', 'Softmax'];
 const LSTM_ACT = ['sigmoid', 'tanh'];
@@ -305,6 +301,11 @@ function rankList(v, n, fallback) {
 function batchShape(cfg) {
   return (cfg && (cfg.batch_input_shape || cfg.batch_shape)) || null;
 }
+
+/* Raised where check_model_compatibility() itself raises - the model loads, but
+   the backend cannot produce a report for it, so neither can this port.  Kept
+   distinct from a load failure so the two are not reported with the same reason. */
+class ReportError extends Error {}
 
 /* ---------------------------------------------------------------------------
  * THE CHECK FUNCTIONS - one per  *_check()  in the python, same strings
@@ -567,6 +568,11 @@ const POOL_RANK = {
 };
 const DROPOUT_RATE_LAYERS = ['Dropout', 'SpatialDropout1D', 'SpatialDropout2D'];
 
+/* A key the config does not carry is never passed to cls(**config) at all, so
+   python binds the signature default.  A key present as null IS passed, and
+   keras raises on it - so only `undefined` is substituted here. */
+const dflt = (v, d) => (v === undefined ? d : v);
+
 /* conv_utils.normalize_tuple -> { tuple } when it returns, { error } when it raises */
 function normalizeTuple(value, n, name, allowZero) {
   let msg = 'The `' + name + '` argument must be a tuple of ' + n + ' integers. Received: ' + pyRepr(value);
@@ -598,12 +604,17 @@ function convInitError(cls, cfg) {
   }
   const groups = cfg.groups || 1;
 
+  /* An ABSENT key is not the same as an explicit null: `cls(**config)` simply
+     never passes the argument and python binds the signature default.  Reading
+     `undefined` as None made every optional key mandatory, so any config not
+     written by keras itself - trimmed, hand-edited, produced by a converter -
+     was rejected for a value the backend fills in silently. */
   const k = normalizeTuple(cfg.kernel_size, rank, 'kernel_size', false);
   if (k.error) return k.error;
-  const s = normalizeTuple(cfg.strides, rank, 'strides', true);
+  const s = normalizeTuple(dflt(cfg.strides, 1), rank, 'strides', true);
   if (s.error) return s.error;
 
-  const padding = String(cfg.padding == null ? '' : cfg.padding).toLowerCase();
+  const padding = String(dflt(cfg.padding, 'valid') == null ? '' : dflt(cfg.padding, 'valid')).toLowerCase();
   if (['valid', 'same', 'causal'].indexOf(padding) === -1) {
     return 'The `padding` argument must be a list/tuple or one of "valid", "same" (or "causal", only for `Conv1D). Received: ' + padding;
   }
@@ -611,7 +622,7 @@ function convInitError(cls, cfg) {
   if (['channels_first', 'channels_last'].indexOf(String(df).toLowerCase()) === -1) {
     return 'The `data_format` argument must be one of "channels_first", "channels_last". Received: ' + df;
   }
-  const d = normalizeTuple(cfg.dilation_rate, rank, 'dilation_rate', true);
+  const d = normalizeTuple(dflt(cfg.dilation_rate, 1), rank, 'dilation_rate', true);
   if (d.error) return d.error;
 
   if (filters !== null && filters % groups !== 0) {
@@ -637,11 +648,12 @@ function convInitError(cls, cfg) {
 function poolInitError(cls, cfg) {
   const rank = POOL_RANK[canon(cls)];
   if (!rank) return null;
-  const p = normalizeTuple(cfg.pool_size, rank, 'pool_size', false);
+  const poolSize = dflt(cfg.pool_size, 2);
+  const p = normalizeTuple(poolSize, rank, 'pool_size', false);
   if (p.error) return p.error;
-  const s = normalizeTuple(cfg.strides == null ? cfg.pool_size : cfg.strides, rank, 'strides', true);
+  const s = normalizeTuple(cfg.strides == null ? poolSize : cfg.strides, rank, 'strides', true);
   if (s.error) return s.error;
-  const pad = String(cfg.padding == null ? '' : cfg.padding).toLowerCase();
+  const pad = String(dflt(cfg.padding, 'valid') == null ? '' : dflt(cfg.padding, 'valid')).toLowerCase();
   if (['valid', 'same', 'causal'].indexOf(pad) === -1) {
     return 'The `padding` argument must be a list/tuple or one of "valid", "same" (or "causal", only for `Conv1D). Received: ' + pad;
   }
@@ -692,6 +704,23 @@ function coreInitError(cls, cfg, rawCfg) {
     const df = cfg.data_format == null ? 'channels_last' : cfg.data_format;
     if (['channels_last', 'channels_first'].indexOf(df) === -1) {
       return '`data_format` must be "channels_last" or "channels_first". Received: data_format=' + df + '.';
+    }
+  }
+  /* GaussianDropout range-checks its rate in __init__ and words it differently
+     from Dropout, so it cannot just join DROPOUT_RATE_LAYERS.  AlphaDropout is
+     deliberately absent: it stores its rate without checking it. */
+  if (c === 'GaussianDropout') {
+    const r = cfg.rate;
+    if (typeof r === 'number' && !(r >= 0 && r <= 1)) {
+      return 'Invalid value received for argument `rate`. Expected a float value between 0 and 1. Received: rate='
+        + rawNum(rawCfg, 'rate', r);
+    }
+  }
+  if (c === 'GaussianNoise') {
+    const sd = cfg.stddev;
+    if (typeof sd === 'number' && !(sd >= 0)) {
+      return 'Invalid value received for argument `stddev`. Expected a float value between 0 and 1. Received: stddev='
+        + rawNum(rawCfg, 'stddev', sd);
     }
   }
   return null;
@@ -1156,7 +1185,12 @@ const KNOWN_INITIALIZERS = [
   'variance_scaling', 'orthogonal', 'identity', 'glorot_normal', 'glorot_uniform', 'he_normal',
   'he_uniform', 'lecun_normal', 'lecun_uniform', 'zero', 'one', 'normal', 'uniform',
 ];
-const KNOWN_REGULARIZERS = ['L1', 'L2', 'L1L2', 'l1', 'l2', 'l1_l2'];
+/* keras 2.15 also ships OrthogonalRegularizer, registered under both its class
+   name and its snake_case alias.  Omitting it rejected models the backend loads
+   without complaint - and Model_Compatibility_47.py never inspects regularizers
+   at all, so a false rejection here buys nothing. */
+const KNOWN_REGULARIZERS = ['L1', 'L2', 'L1L2', 'OrthogonalRegularizer',
+  'l1', 'l2', 'l1_l2', 'orthogonal_regularizer'];
 const KNOWN_CONSTRAINTS = [
   'MaxNorm', 'MinMaxNorm', 'NonNeg', 'UnitNorm', 'RadialConstraint',
   'max_norm', 'min_max_norm', 'non_neg', 'unit_norm', 'radial_constraint',
@@ -1195,14 +1229,13 @@ const SEP_KWARGS = DW_KWARGS.concat(['filters', 'pointwise_initializer', 'pointw
 const POOL_KWARGS = ['pool_size', 'strides', 'padding', 'data_format'];
 
 const LAYER_KWARGS = {
-  /* `optional` is not a keras 2.15 argument - it arrived in a later 2.x and a
-     strict 2.15 backend raises "Unrecognized keyword arguments: ['optional']" on
-     a file that carries it.  It is accepted here because a backend running any
-     keras >= the one that SAVED the model loads it fine, which is the ordinary
-     case.  Drop it from this list if your backend is pinned to 2.15.0 exactly
-     and you want a file saved by a newer 2.x to be rejected here too. */
+  /* `optional` is not a keras 2.15 argument - it arrived in a later 2.x, and the
+     backend this port has to agree with raises "Unrecognized keyword arguments:
+     ['optional']" on a file that carries it.  Tolerating it here let a file pass
+     that Model_Compatibility_47.py rejects.  Put it back only if the backend is
+     moved off 2.15.0. */
   InputLayer: ['input_shape', 'batch_size', 'dtype', 'input_tensor', 'sparse', 'name', 'ragged',
-    'type_spec', 'batch_input_shape', 'optional'],
+    'type_spec', 'batch_input_shape'],
   Dense: ['units', 'activation', 'use_bias', 'kernel_initializer', 'bias_initializer',
     'kernel_regularizer', 'bias_regularizer', 'activity_regularizer', 'kernel_constraint',
     'bias_constraint'],
@@ -1236,6 +1269,55 @@ const LAYER_KWARGS = {
     'recurrent_constraint', 'bias_constraint', 'dropout', 'recurrent_dropout', 'return_sequences',
     'return_state', 'go_backwards', 'stateful', 'time_major', 'unroll', 'zero_output_for_mask'],
 };
+
+/* The arguments each __init__ takes POSITIONALLY with no default.  load_model()
+   does cls(**config), so a config missing one of these never reaches the layer
+   body at all - python raises TypeError while binding the signature, before
+   validate_kwargs() and before any activation or initializer is resolved.
+
+   The port used to test only the values it found (`typeof cfg.units === 'number'`
+   and friends), so an absent key slipped through and `undefined` then propagated
+   into shape inference and into expectedWeights(), where it became a null axis
+   the weight comparison skips - a broken model reported as clean.
+
+   Classes absent from this map either have a default for every argument
+   (pooling, BatchNormalization, Flatten, ReLU, Softmax, InputLayer) or are
+   outside the supported set, where guessing at a signature would only invent
+   rejections. */
+const REQUIRED_ARGS = {
+  Dense: ['units'],
+  Conv1D: ['filters', 'kernel_size'],
+  Conv2D: ['filters', 'kernel_size'],
+  SeparableConv1D: ['filters', 'kernel_size'],
+  SeparableConv2D: ['filters', 'kernel_size'],
+  DepthwiseConv1D: ['kernel_size'],
+  DepthwiseConv2D: ['kernel_size'],
+  LSTM: ['units'],
+  Reshape: ['target_shape'],
+  Permute: ['dims'],
+  Activation: ['activation'],
+  Dropout: ['rate'],
+  SpatialDropout1D: ['rate'],
+  SpatialDropout2D: ['rate'],
+  AlphaDropout: ['rate'],
+  GaussianDropout: ['rate'],
+  GaussianNoise: ['stddev'],
+};
+
+function missingRequiredError(cls, cfg) {
+  const c = canon(cls);
+  const need = REQUIRED_ARGS[c];
+  if (!need) return null;
+  const missing = need.filter((k) => !(k in (cfg || {})));
+  if (!missing.length) return null;
+  /* python's own wording, plural form included */
+  const names = missing.map((m) => "'" + m + "'");
+  const list = names.length === 1
+    ? names[0]
+    : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+  return c + '.__init__() missing ' + missing.length + ' required positional argument'
+    + (missing.length === 1 ? '' : 's') + ': ' + list;
+}
 
 /* InputLayer validates its own leftovers and words it differently from the
    generic_utils.validate_kwargs() check every other layer inherits. */
@@ -1358,6 +1440,60 @@ function unresolvableObject(cls, cfg) {
   return null;
 }
 
+/* conv_utils.normalize_padding() and normalize_data_format() both .lower() the
+   value and store the result, so `layer.padding` and `layer.data_format` are
+   ALWAYS lower case by the time Model_Compatibility_47.py reads them - "VALID"
+   and "CHANNELS_LAST" load fine there and report as supported.
+
+   This port validated a lower-cased copy but then reported on the raw config
+   string, so the same file was flagged here and clean in the backend; Flatten
+   ran the mismatch the other way and passed a channels-first layer the backend
+   rejects.  Normalising once, up front, is what the constructors do.
+
+   SpatialDropout2D is deliberately NOT in this list: its __init__ compares
+   data_format without lowering it, so a mixed-case value really is an error
+   there, and coreInitError() already reports it. */
+const PADDING_NORMALISED = [].concat(CONV_LAYERS, POOL_LAYERS);
+const DATA_FORMAT_NORMALISED = [].concat(CONV_LAYERS, POOL_LAYERS, ['Flatten']);
+
+function normalizeLayerConfigs(layers) {
+  for (const l of layers || []) {
+    const c = canon(l && l.class_name);
+    const cfg = l && l.config;
+    if (!cfg) continue;
+    if (PADDING_NORMALISED.indexOf(c) !== -1 && typeof cfg.padding === 'string') {
+      cfg.padding = cfg.padding.toLowerCase();
+    }
+    if (DATA_FORMAT_NORMALISED.indexOf(c) !== -1 && typeof cfg.data_format === 'string') {
+      cfg.data_format = cfg.data_format.toLowerCase();
+    }
+  }
+}
+/* Python/Keras Sequential models require every layer name to be unique.
+ * load_model() rejects duplicate layer names while reconstructing the
+ * Sequential model. Keep this as a separate load-level validation so
+ * existing layer compatibility checks are not changed.
+ */
+function duplicateLayerNameError(parsed) {
+  const cfgRoot = parsed && parsed.config;
+  const rawLayers = (cfgRoot && cfgRoot.config && cfgRoot.config.layers) || [];
+
+  const seen = new Set();
+
+  for (const layer of rawLayers) {
+    const name = layer && layer.config && layer.config.name;
+
+    if (!name) continue;
+
+    if (seen.has(name)) {
+      return "All layers added to a Sequential model should have unique names. Name '" + name + "' is used more than once.";
+    }
+
+    seen.add(name);
+  }
+
+  return null;
+}
 /* Sequential.from_config: deserialize each layer, then add() it, in order */
 function constructorFailure(parsed) {
   const cfgRoot = parsed && parsed.config;
@@ -1386,7 +1522,10 @@ function constructorFailure(parsed) {
        raised from inside cls(**config), so it wears the same envelope as a bad
        argument value does */
     const rawCfg = (rawLayers[idx] && rawLayers[idx].config) || null;
-    const inner = unresolvableObject(cls, layer.config) /* 0b */
+    /* the signature is bound BEFORE the body runs, so a missing positional
+       argument beats every check inside __init__ */
+    const inner = missingRequiredError(cls, layer.config) /* 0c */
+      || unresolvableObject(cls, layer.config) /* 0b */
       || initError(cls, layer.config, rawCfg); /* 1. cls(**config) */
     if (inner) {
       if (UNWRAPPED_FROM_CONFIG.indexOf(canon(cls)) !== -1) return inner;
@@ -1399,7 +1538,12 @@ function constructorFailure(parsed) {
     if (built) return built;
   }
 
-  /* 4. only once every layer is constructed and built does keras assign weights */
+  /* 4. only once every layer is constructed and built does keras assign weights.
+     readWeights() returns null when the group is missing altogether, which is
+     where load_model_from_hdf5() raises on f["model_weights"]. */
+  if (weights === null) {
+    return "Unable to open object (object 'model_weights' doesn't exist)";
+  }
   const wErr = weightsGroupError(seq, weights);
   if (wErr) return wErr;
   for (const layer of seq) {
@@ -1414,8 +1558,11 @@ function constructorFailure(parsed) {
    those raise their own messages, neither of which is the assignment error. */
 function weightsGroupError(seq, weights) {
   if (!weights) return null;
+  /* No early return on an empty map.  keras compares the saved layer list with
+     the model's weighted layers BEFORE assigning anything, so a file that
+     declares nothing and a model that expects weights is a count mismatch -
+     bailing out here reported such a file as clean. */
   const savedNames = Object.keys(weights);
-  if (!savedNames.length) return null;
 
   /* Layer types we can size.  It is only used to spot a layer the config gained
      that the file has no weights for - never to decide that a layer is
@@ -1656,18 +1803,19 @@ function analyse(cfgRoot) {
     } else if (cls === 'Dense') {
       modelStartFlag = true;
       firstLayerFlag = true;
-      /* the LSTM->Dense placement rule only applies when an LSTM actually sits
-         BEFORE this Dense.  `layers.some(...)` alone also matches an LSTM that
-         comes AFTER it, which in the python left the layer with no header row
-         and crashed the tail with an IndexError. */
-      let headerPushed = false;
+      /* Model_Compatibility_47.py:603-626 enters this branch whenever an LSTM
+         exists ANYWHERE in the model, but only appends a header row when one is
+         found BEFORE this Dense.  A Dense that precedes every LSTM therefore
+         leaves ops[] with no header and the python raises IndexError in the
+         tail (py:1079).  The port used to invent a header here, which reported
+         a clean model for a file the backend cannot report on at all; the tail
+         below now reproduces the failure instead. */
       if (!lstmDenseFlag) {
         if (layers.some((l) => canon(l.class_name) === 'LSTM')) {
           const prev = prevOf(idx);
           for (let i = 0; i < prev.length; i++) {
             if (canon(prev[i].class_name) === 'LSTM') {
               lstmDenseFlag = 1;
-              headerPushed = true;
               if (prev[i].config.return_sequences) {
                 const btw = prev.slice(0, i).map((x) => canon(x.class_name));
                 if (btw.indexOf('Flatten') === -1 && btw.indexOf('Reshape') === -1) {
@@ -1679,14 +1827,11 @@ function analyse(cfgRoot) {
             }
           }
         } else {
-          headerPushed = true;
           ops.push(hdr(layer, 'Supported'));
         }
       } else {
-        headerPushed = true;
         ops.push(hdr(layer, 'Supported'));
       }
-      if (!headerPushed) ops.push(hdr(layer, 'Supported'));
       ops.push(activationCheck(actName(cfg.activation), actConfig(cfg.activation)));
       if (idx === 0) ops.push(inputCheck(layer.input_shape));
 
@@ -1845,11 +1990,6 @@ function analyse(cfgRoot) {
       }
     }
 
-    /* the python's `else: pass` leaves ops empty and the tail then crashes on
-       an IndexError; a header keeps the row renderable */
-    if (ops.length === 0 || String(ops[0]).indexOf('!!!') === -1) {
-      ops.unshift(hdr(layer, 'Supported'));
-    }
     op.push(ops);
   });
 
@@ -1867,6 +2007,13 @@ function analyse(cfgRoot) {
   const NS = (s) => String(s).indexOf('Not Supported') !== -1;
   const filtered = [];
   for (let i = 0; i < op.length; i++) {
+    /* py:1079 and py:1084 both index filtered_op[i][0][0] and [0][1], which only
+       exist when the row opens with a "name!!!Class!!!status" header.  A row
+       without one - the Dense case above, or the python's unreachable
+       `else: pass` - raises IndexError there and the model gets no report. */
+    if (!op[i].length || String(op[i][0]).indexOf('!!!') === -1) {
+      throw new ReportError('IndexError: list index out of range');
+    }
     let flag = 0;
     let status = [];
     if (op[i].length === 1 && NS(op[i][0])) {
@@ -1954,13 +2101,26 @@ function checkModelCompatibility(parsed) {
       return reject(pyClassRepr(cfgRoot.class_name) + ' found, Only Sequential Model Types are Supported, Please change the Model Type.');
     }
 
-    /* stages 1-4 of load_model() on a linear stack */
-    const ctor = constructorFailure(parsed);
-    if (ctor) throw new Error(ctor);
+/* what the layer constructors do to these two strings, done once up front so
+ * the load checks and the report both read the same value keras stored */
+normalizeLayerConfigs(cfgRoot.config && cfgRoot.config.layers);
+
+/* Sequential.from_config rejects duplicate layer names during load_model().
+ * This is an additional load-level check; all existing compatibility checks
+ * remain unchanged. */
+const duplicateNameError = duplicateLayerNameError(parsed);
+if (duplicateNameError) throw new Error(duplicateNameError);
+
+/* stages 1-4 of load_model() on a linear stack */
+const ctor = constructorFailure(parsed);
+if (ctor) throw new Error(ctor);
 
     /* an empty Sequential loads in python and reports as compatible */
     return analyse(cfgRoot);
   } catch (err) {
+    /* the model loaded and check_model_compatibility() itself raised - that is
+       not a load failure and must not be reported as an old-libraries problem */
+    if (err instanceof ReportError) return reject('Unable to Analyse Model : ' + err.message);
     return reject(loadFailureReason(parsed, err));
   }
 }
