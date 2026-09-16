@@ -1,0 +1,2650 @@
+/* =====================================================================
+   FLASHER - production UI
+   ---------------------------------------------------------------------
+   LAYOUT CHAIN - every level is flex, and every level that scrolls also
+   carries min-height: 0. That one property is what actually makes a flex
+   scroller work: flex items default to min-height: auto, so without it
+   they refuse to shrink below their content and the scrollbar never
+   appears.
+
+   .fl                        column - owns the viewport height
+    > .fl-inner               column - centred, capped at 1440px
+       > .fl-head             fixed height
+       > .fl-main             row - takes everything left over
+          > .fl-viz           grows to 25%, hard-capped at 330px
+          > .fl-work          grows to fill - POSITION: RELATIVE
+             > .fl-screen-config     absolute - inset 0
+             > .fl-screen-progress   absolute - inset 0   (cross-fades)
+
+   The two .fl-screen layers MUST stay absolute and stacked on top of one
+   another. Both sit in the DOM while a flash is running, so in normal
+   flow they would render side by side inside .fl-work.
+
+   Sizing uses clamp() throughout, so the same file fits a 1366x768 laptop
+   and a 2560px monitor without a single fixed pixel height.
+
+   Colour: green = live / verified - amber = detecting - red = fault.
+   ===================================================================== */
+
+/* =====================================================================
+   1. SHELL
+   ===================================================================== */
+.fl {
+  /* Panel surface. LIGHTER than the #151515 page, which is what actually makes
+     the box read as raised - the old #0e120f was darker than the page, so no
+     amount of shadow could stop it looking sunk into it. Shared as a variable
+     because the multi-bin scroll fades have to blend into this exact colour.
+
+     Opaque, and it has to stay opaque: it is the base layer under the sheen
+     gradient on .fl-card / .fl-prog below, and it is what those scroll fades
+     fade to. The old value carried 38% alpha, so the page grid showed through
+     the panel and the fades never fully covered the rows behind them. */
+  --fl-card: #161816;
+
+  /* Neutral, so it sits on #151515 without the green cast reading as a stray
+     accent. The lighter top edge is the bevel: a catch-light along the top and
+     a darker line underneath is what sells height. */
+  --fl-card-border: rgba(255, 255, 255, 0.09);
+  --fl-card-border-top: rgba(255, 255, 255, 0.15);
+
+  /* Stacked elevation rather than one big blur: a tight contact shadow, a mid
+     one, and a wide ambient. Real depth comes from the three together - a
+     single 40px blur just looks like fog. */
+  --fl-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 6px 14px rgba(0, 0, 0, 0.4),
+    0 20px 44px rgba(0, 0, 0, 0.52);
+
+  /* One family for the whole flasher. */
+  --fl-font: "Gilroy", "Gilroy", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  position: relative;
+  height: calc(100vh - 132px);
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  background-color: #151515;
+  color: #eef2ee;
+  font-family: var(--fl-font);
+  /* The face is already bold, so never let the browser fake a heavier one on
+     top of it for the font-weight: 500/600 rules below - that smears it. */
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.fl *,
+.fl *::before,
+.fl *::after { box-sizing: border-box; }
+
+.fl button:focus-visible,
+.fl input:focus-visible,
+.fl label:focus-visible {
+  outline: 2px solid rgba(83, 216, 36, 0.6);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* ---- backdrop ---- */
+.fl-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ---- content rail: this is what keeps the UI centred and stops it
+        stretching edge to edge on a wide monitor ---- */
+.fl-inner {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 2.6vw, 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* =====================================================================
+   2. HEADER
+   ===================================================================== */
+.fl-head {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: clamp(14px, 2.2vh, 24px) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  animation: fl-in 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.fl-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 0;
+  height: 1px;
+  background: linear-gradient(90deg, #53d824, transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.fl-head.is-live::after {
+  width: 100%;
+  opacity: 0.8;
+  animation: fl-headline 2.8s ease-in-out infinite;
+}
+
+/* Starts exactly where .fl-work starts, so the title sits directly above the
+   panel column instead of out at the right edge of the rail.
+
+   The percentage is .fl-viz's share of the row: it is `flex: 1` against
+   .fl-work's `flex: 2`. .fl-head is the same width as .fl-main (both
+   full-width flex children of .fl-inner, neither with horizontal padding), so
+   the percentage resolves against the same box. If either flex value changes,
+   this and the 1280px override below have to follow. */
+.fl-head-id {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: clamp(10px, 1vw, 14px);
+  min-width: 0;
+  margin-right: 22.5%;
+}
+.fl-mark {
+  flex: 0 0 auto;
+  width: clamp(34px, 3vw, 42px);
+  height: clamp(34px, 3vw, 42px);
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(83, 216, 36, 0.36);
+  border-radius: 12px;
+  background: rgba(83, 216, 36, 0.1);
+  color: #53d824;
+}
+.fl-mark svg { width: 52%; height: 52%; }
+.fl-head.is-live .fl-mark { animation: fl-mark-pulse 2s ease-in-out infinite; }
+
+.fl-title {
+  margin: 3px;
+  min-width: 0;
+  /* 26px floor, not 20px: 2.3vw crosses 26px at ~1130px, so below that the
+     title was still tracking the viewport and ended up smaller than the
+     Continue button's own label. Above 1130px nothing changes. */
+  font-size: clamp(26px, 2.3vw, 42px);
+  letter-spacing: -0.3px;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =====================================================================
+   3. MAIN SPLIT
+   ===================================================================== */
+.fl-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+/* ---- left: device graphic. flex-grow 1 against the work column's 2
+        gives it a third, and max-width stops it ballooning on a wide screen.
+        The SVG carries its own aspect ratio, so no fixed height. ---- */
+.fl-viz {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  /* Column, because the board graphic now carries a readout underneath it -
+     the caption for whatever the board is animating. The SVG takes the space
+     that is left over, so the readout is never the thing that gets crushed. */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.4vh, 16px);
+  padding: clamp(10px, 2vh, 26px) clamp(12px, 1.6vw, 30px) clamp(10px, 2vh, 26px) 0;
+  animation: fl-in 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) 0.08s both;
+}
+/* Ground light behind the board. Neutral, not green - the halo inside the
+   SVG owns the accent, and doubling it up just makes the whole column look
+   tinted. This is only here to lift the board off the page. */
+.fl-viz::before {
+  content: "";
+  position: absolute;
+  inset: 8% 6%;
+  pointer-events: none;
+}
+.fl-dev {
+  position: relative;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* ---- right: work column. position: relative is load-bearing - the two
+        .fl-screen layers stack inside it. ---- */
+.fl-work {
+  position: relative;
+  flex: 2;
+  min-width: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.fl-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding:
+    clamp(14px, 2.4vh, 28px)
+    clamp(6px, 0.8vw, 14px)
+    clamp(14px, 2.4vh, 28px)
+    clamp(20px, 3vw, 56px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  /* Both properties finish TOGETHER at 0.3s, on a decelerating curve
+     (ease-out) rather than ease-in-out, so the screen settles instead of
+     coasting to a stop. */
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fl-screen-config { transform: translateY(0); opacity: 1; }
+/* "safe" center, same reason as .fl-page.is-active: the panel inside hugs its
+   content now, so it needs centring - but plain `center` would clip the top of
+   a panel taller than the screen instead of letting it scroll. */
+.fl-screen-progress {
+  justify-content: safe center;
+  transform: translateY(14px);
+  opacity: 0;
+  pointer-events: none;
+}
+.fl-work.go-progress .fl-screen-config { transform: translateY(-16px); opacity: 0; pointer-events: none; }
+.fl-work.go-progress .fl-screen-progress { transform: translateY(0); opacity: 1; pointer-events: auto; }
+
+/* ---- Leaving the progress screen (Finish / Try again) ----
+   The panel is still mounted here, holding its finished content, and it is
+   the loss of .go-progress above that slides it back out. Two things have to
+   be pinned down for that half second:
+
+   1. The wizard is rewound to step 1 in the same click, so its own page
+      transition is suppressed - inside a layer at opacity 0 that slide is
+      invisible anyway, and it would still be running when the layer arrived.
+   2. Nothing on the outgoing panel may be clickable while it fades. */
+.fl-work.is-leaving .fl-page { transition: none; }
+.fl-work.is-leaving .fl-screen-progress { pointer-events: none; }
+/* A beat behind the panel that is leaving, so the two never sit on top of
+   each other half-faded - the same trick .fl-page.is-active uses. Entering
+   the progress screen keeps no delay: that direction is .go-progress. */
+.fl-work.is-leaving .fl-screen-config { transition-delay: 0.06s; }
+
+.fl-file-input { display: none; }
+
+/* ---- step counter. It lives inside .fl-stack (page 1) / inside the
+        back row (page 2), so it sits at the right edge of the form
+        column instead of the far edge of the work column. No margin: the
+        stack's own gap does the spacing, so both pages line up. ---- */
+.fl-steps {
+  flex: 0 0 auto;
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 5px 10px;
+  border-radius: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.11);
+}
+.fl-steps-bars { display: flex; gap: 5px; }
+.fl-steps-bar {
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.15);
+  transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+.fl-steps-bar.is-on { background: #53d824; box-shadow: 0 0 10px rgba(83, 216, 36, 0.45); }
+.fl-steps-text {
+  font-family: var(--fl-font);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  color: rgba(238, 242, 238, 0.38);
+  white-space: nowrap;
+}
+
+/* =====================================================================
+   4. WIZARD PAGES
+   ===================================================================== */
+/* Both pages are ALWAYS absolute and stacked on each other - the state class
+   only ever changes transform and opacity.
+
+   Neither `position` nor `flex` can be interpolated, so moving the active page
+   between relative and absolute snapped both pages to a new box while they
+   were mid-fade. That snap under the cross-fade is what reads as a broken
+   transition - the timing was never the problem.
+
+   Scrolling lives here rather than on .fl-screen for the same reason: with
+   both children absolute the screen has no content height left to scroll.
+   Same box, same padding edge, so nothing else changes. */
+.fl-page {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* "safe" keeps the top of a tall page reachable. Plain `center` clips
+     overflowing content above the scroll origin. */
+  justify-content: safe center;
+  gap: clamp(20px, 3.2vh, 36px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition:
+    transform 0.46s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease;
+}
+.fl-page.is-active {
+  z-index: 1;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  /* Order matches the transition list above: transform 0s, opacity 0.07s. The
+     incoming page fades in a beat after the outgoing one starts leaving, so
+     the two cards never sit on top of each other at half opacity. */
+  transition-delay: 0s, 0.07s;
+}
+/* Small offsets: the two pages are near-identical panels, so a long slide
+   reads as a jolt rather than as movement. */
+.fl-page.is-left { transform: translate3d(-3.5%, 0, 0); }
+.fl-page.is-right { transform: translate3d(3.5%, 0, 0); }
+
+/* ---------------------------------------------------------------------
+   THE PANEL - shared by every screen in the work column: the two wizard
+   pages (.fl-card) and the progress screen (.fl-prog), which is also what
+   renders the success, failure and UART output views.
+
+   Visuals only - each one keeps its own sizing below. Both hug their
+   content and get centred by their .fl-screen layer.
+   --------------------------------------------------------------------- */
+.fl-card,
+.fl-prog {
+  border: 2px solid #54d82469;
+  border-radius: 20px;
+  /* Sheen: a 2% white wash that is gone by 30% of the panel's height, over the
+     flat surface colour. Light falls from the top in this UI - the same reason
+     .fl-card-shadow's inset highlight is on the top edge - so the gradient
+     runs the same way and stops early rather than washing the whole panel. */
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 30%),
+    var(--fl-card);
+  box-shadow: var(--fl-card-shadow);
+}
+
+/* The wizard panel wraps BOTH .fl-stack and .fl-cta, so the fields and the
+   Continue / Upgrade button read as one card. */
+.fl-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(18px, 2.8vh, 28px);
+  width: 100%;
+  max-width: 620px;
+  padding: clamp(18px, 2.6vh, 28px) clamp(16px, 2vw, 28px);
+}
+
+/* Form column: capped so controls stay a comfortable reading width on a
+   large monitor instead of stretching to 900px. */
+.fl-stack {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2.4vh, 24px);
+  width: 90%;
+}
+
+.fl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  animation: fl-in 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.fl-field-iface { position: relative; z-index: 30; }
+
+/* Flash interface shrinks in multi-bin mode only - single-bin keeps the
+   standard 48px. Both variants are covered: the dropdown when the interface
+   is selectable, and the fixed SPI0 readout when it is not, otherwise the
+   field height would jump with the detected chip. */
+.fl-page.is-multi .fl-field-iface .dd-trigger,
+.fl-page.is-multi .fl-readout.is-fixed { height: 38px; }
+
+.fl-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  font-size: 10.5px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: rgba(238, 242, 238, 0.471);
+  white-space: nowrap;
+}
+.fl-label::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.263);
+}
+
+/* Two fields side by side, always exactly half each. flex: 1 1 0 plus
+   min-width: 0 is what stops the wider label from winning. */
+.fl-grid2 {
+  display: flex;
+  gap: clamp(14px, 2vw, 26px);
+  margin-top: 10px;
+  width: 100%;
+}
+.fl-grid2 > .fl-field { flex: 1 1 0; min-width: 0; }
+
+/* Back on the left, the step counter on the right, both on one line. */
+.fl-backrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+}
+.fl-backrow .fl-steps { align-self: center; }
+.fl-back {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 10px;
+  gap: 7px;
+  height: 30px;
+  padding: 0 14px 0 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(238, 242, 238, 0.66);
+  font-family: var(--fl-font);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, transform 0.12s ease;
+}
+.fl-back svg { width: 13px; height: 13px; transition: transform 0.22s ease; }
+.fl-back:hover { border-color: rgba(83, 216, 36, 0.36); color: #eef2ee; background: rgba(83, 216, 36, 0.1); }
+.fl-back:hover svg { transform: translateX(-2px); }
+.fl-back:active { transform: scale(0.97); }
+
+.fl-cta-continue {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 560px;
+  /* Needed inside .fl-prog: that column stretches its children, so without
+     this the capped 560px row would sit left instead of centred. */
+  margin-inline: auto;
+}
+.fl-cta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 560px;
+  /* Needed inside .fl-prog: that column stretches its children, so without
+     this the capped 560px row would sit left instead of centred. */
+  margin-inline: auto;
+}
+
+/* Breathing room under Upgrade firmware in single-bin mode only. Scoped to
+   .is-single so multi-bin keeps its current spacing, and so neither page 1's
+   Continue nor the progress screen's Finish / Try again is touched - they use
+   .fl-cta-continue and sit outside .fl-page respectively. */
+.fl-page.is-single .fl-cta { margin-bottom: 10px; }
+
+/* =====================================================================
+   5. SEGMENTED CONTROL - flasher mode
+   ---------------------------------------------------------------------
+   One sunk track, one thumb that slides to the selected segment. The
+   markup sets two numbers on .fl-seg - --n (segment count) and --i
+   (selected index) - and every measurement below is derived from them,
+   so a third mode would need no new CSS. Selection is therefore one
+   transform on one element instead of a border swap plus a tick per
+   card, which is what made the old pair of cards feel dated.
+
+   The padding is the track's inset: the thumb is offset by it on both
+   axes, so its travel is exactly one segment width per step.
+   ===================================================================== */
+.fl-seg {
+  --n: 2;
+  --i: 0;
+  --fl-seg-pad: 4px;
+
+  /* ONE duration and ONE curve for everything that changes on selection:
+     the thumb's travel, both labels' colour, and both icon tiles. They are
+     all triggered by the same click, so sharing the timing is what makes
+     the control move as a single object - when the text snapped to green
+     in 0.24s while the thumb was still travelling for 0.44s, the colour
+     arrived at a segment the thumb had not reached yet. */
+  --fl-seg-dur: 0.4s;
+  --fl-seg-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  width: 100%;
+  padding: var(--fl-seg-pad);
+  /* Border, radius and background are the Target board / Detected chip
+     values: this control sits directly above those two, so it has to be the
+     same box. The radius is their 10px plus the padding, which is what keeps
+     the thumb's own 10px corners concentric with the track's. */
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  /* Darker than the card, unlike everything else in this panel - the
+     groove has to read as recessed for the thumb to read as sitting in
+     it. The inset shadow is the top edge of that groove. */
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.fl-seg-thumb {
+  position: absolute;
+  z-index: 0;
+  top: var(--fl-seg-pad);
+  left: var(--fl-seg-pad);
+  height: calc(100% - 2 * var(--fl-seg-pad));
+  width: calc((100% - 2 * var(--fl-seg-pad)) / var(--n));
+  /* Same green and the same alpha as the panel's own border, so the thumb
+     reads as part of this card rather than a brighter accent laid over it. */
+  border: 1px solid #54d82469;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(83, 216, 36, 0.14), rgba(83, 216, 36, 0.04));
+  /* Depth only - no green glow. The card border is already a green line a few
+     pixels away, and a second glowing one next to it just reads as a halo. */
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 2px 8px rgba(0, 0, 0, 0.4);
+  /* 100% of the thumb is one segment, so --i is the whole animation. */
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform var(--fl-seg-dur) var(--fl-seg-ease);
+  pointer-events: none;
+}
+
+.fl-seg-opt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  /* Icon and label centre as ONE group, the same way .fl-readout centres its
+     dot and value - not the icon pinned left with the text centred after it.
+     It also matches the Target board trigger's centred value directly below. */
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  /* 46 + 2x4 padding = 54, so the track is the same order of height as the
+     48px controls under it instead of towering over them. */
+  height: 46px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: rgba(238, 242, 238, 0.52);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--fl-seg-dur) var(--fl-seg-ease);
+}
+/* absolute, not width:0 - a zero-width flex child still eats a gap */
+.fl-seg-opt input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+.fl-seg-opt:hover:not(.is-active) { color: rgba(238, 242, 238, 0.8); }
+.fl-seg-opt:hover:not(.is-active) .fl-seg-ic { background: rgba(255, 255, 255, 0.1); }
+.fl-seg-opt.is-active { color: #eef2ee; }
+
+/* The radio is visually hidden, so the focus ring has to be drawn by the
+   label it lives in - otherwise arrow-key navigation is invisible.
+   :has(:focus-visible), NOT :focus-within: a mouse click focuses the radio
+   too, so :focus-within painted a second bright ring directly on top of the
+   thumb's border on every click. This is for the keyboard only.
+   Drawn as an outline with an offset so it sits in the track's padding gap
+   rather than doubling up on the thumb's edge. */
+.fl-seg-opt:has(input:focus-visible) {
+  outline: 2px solid rgba(83, 216, 36, 0.55);
+  outline-offset: 1px;
+}
+
+.fl-seg-ic {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: currentColor;
+  /* Colour follows the thumb; the press scale is a separate, snappier
+     gesture and keeps its own timing. */
+  transition: background var(--fl-seg-dur) var(--fl-seg-ease),
+    color var(--fl-seg-dur) var(--fl-seg-ease),
+    transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+.fl-seg-ic svg { width: 16px; height: 16px; }
+.fl-seg-opt:active .fl-seg-ic { transform: scale(0.92); }
+.fl-seg-opt.is-active .fl-seg-ic {
+  background: rgba(83, 216, 36, 0.16);
+  color: #53d824;
+}
+
+/* Title over a one-line hint: the hint is what the old cards had no room
+   for, and it is the part that actually tells the two modes apart. */
+.fl-seg-text {
+  display: flex;
+  flex-direction: column;
+  /* Both lines centred on each other, not sharing a left edge: the hint is
+     sometimes WIDER than the title ("Up to 5 images" against "Multi-bin"), so
+     a shared left edge would leave the title hanging off to one side of a
+     group that is itself centred. */
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  text-align: center;
+}
+.fl-seg-title {
+  font-size: 13.5px;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fl-seg-sub {
+  font-size: 10.5px;
+  letter-spacing: 0.3px;
+  color: rgba(238, 242, 238, 0.34);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--fl-seg-dur) var(--fl-seg-ease);
+}
+.fl-seg-opt.is-active .fl-seg-sub { color: rgba(83, 216, 36, 0.72); }
+
+/* =====================================================================
+   6. READOUT - detected chip / fixed interface
+   ===================================================================== */
+.fl-readout {
+  position: relative;
+  width: 100%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  /* Centres the dot and the value as ONE group, rather than pinning the dot
+     left and centring the text on its own. Needs .fl-readout-value to stop
+     growing (flex: 0 1 auto below) or it eats the free space and there is
+     nothing left to centre. */
+  justify-content: center;
+  gap: 12px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  transition: border-color 0.25s ease, background 0.25s ease;
+}
+/* flex: 0 1 auto - shrink-to-fit so the dot + value pair sits centred as a
+   group (see justify-content above). It may still SHRINK, which is what keeps
+   min-width/ellipsis working on a long fault label; it just must not grow. */
+.fl-readout-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-family: var(--fl-font);
+  font-size: 13.5px;
+  letter-spacing: 0.2px;
+  color: rgba(238, 242, 238, 0.66);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  transition: color 0.25s ease;
+}
+.fl-dot {
+  position: relative;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(238, 242, 238, 0.38);
+}
+.fl-dot::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0;
+}
+
+.fl-readout.is-detecting { border-color: rgba(240, 180, 41, 0.36); }
+.fl-readout.is-detecting .fl-dot { background: #f0b429; color: #f0b429; animation: fl-blink 1.2s ease-in-out infinite; }
+.fl-readout.is-detecting .fl-readout-value { color: #f0b429; }
+.fl-readout.is-detecting::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -35%;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, rgba(240, 180, 41, 0.1), transparent);
+  animation: fl-sweep 2.1s linear infinite;
+  pointer-events: none;
+}
+
+.fl-readout.is-detected {
+  border-color: rgba(83, 216, 36, 0.36);
+  background: linear-gradient(180deg, rgba(83, 216, 36, 0.08), rgba(83, 216, 36, 0)), rgba(0, 0, 0, 0.28);
+}
+.fl-readout.is-detected .fl-dot { background: #53d824; color: #53d824; box-shadow: 0 0 10px rgba(83, 216, 36, 0.55); }
+.fl-readout.is-detected .fl-dot::after { opacity: 0.4; animation: fl-ring 2.6s ease-out infinite; }
+.fl-readout.is-detected .fl-readout-value { color: #53d824; }
+
+.fl-readout.is-none { border-color: rgba(255, 95, 86, 0.36); }
+.fl-readout.is-none .fl-dot { background: #ff5f56; color: #ff5f56; }
+.fl-readout.is-none .fl-readout-value { color: rgba(255, 95, 86, 0.92); }
+
+.fl-readout.is-fixed { padding-right: 88px; }
+.fl-tag {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--fl-font);
+  font-size: 9px;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: rgba(238, 242, 238, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  padding: 3px 7px;
+}
+
+/* =====================================================================
+   7. BUTTONS
+   ===================================================================== */
+.fl-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #eef2ee;
+  font-family: var(--fl-font);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.14s ease, border-color 0.22s ease, background 0.22s ease, box-shadow 0.28s ease, opacity 0.2s ease;
+}
+/* no vertical travel on press - scale only, so the button never jumps */
+.fl-btn:active:not(:disabled) { transform: scale(0.97); }
+.fl-btn:disabled { cursor: not-allowed; opacity: 0.45; }
+.fl-btn-text { white-space: nowrap; }
+.fl-btn-ic { flex: 0 0 16px; width: 16px; height: 16px; transition: transform 0.24s ease; }
+
+.fl-btn-primary {
+  min-width: min(150px, 100%);
+  border-color: rgba(83, 216, 36, 0.36);
+  background: linear-gradient(180deg, rgba(84, 216, 36, 0.014), rgba(84, 216, 36, 0.063));
+  color: #f0fde9;
+}
+.fl-btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -45%;
+  width: 45%;
+  transform: skewX(-18deg);
+  opacity: 0;
+}
+/* Continue / Upgrade firmware / Finish: scale on hover, press-in on click,
+   nothing else - colours and background stay exactly as they are. */
+.fl-btn-primary:hover:not(:disabled) {
+  transform: scale(1.04);
+}
+.fl-btn-primary:hover:not(:disabled)::after { opacity: 1; animation: fl-sweep 0.8s ease-out; }
+
+.fl-btn-danger {
+  flex: 0 1 auto;
+  min-width: min(150px, 100%);
+  border-color: rgba(255, 95, 86, 0.36);
+  background: linear-gradient(180deg, rgba(255, 95, 86, 0.16), rgba(255, 95, 86, 0.05));
+  color: #ffeceb;
+}
+.fl-btn-danger:hover { border-color: rgba(255, 95, 86, 0.75); transform: scale(1.04); }
+.fl-btn-danger:hover .fl-btn-ic { transform: rotate(-40deg); }
+
+.fl-btn-quiet {
+  flex: 0 0 auto;
+  height: 38px;
+  min-width: 0;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(238, 242, 238, 0.66);
+  font-size: 13px;
+  font-weight: 500;
+}
+.fl-btn-quiet:hover { border-color: rgba(83, 216, 36, 0.36); background: rgba(83, 216, 36, 0.1); color: #eef2ee; }
+
+/* Press-in, for Continue / Upgrade firmware / Finish / Try again.
+   These MUST sit after the :hover rules above: the variant hover selectors
+   carry the same specificity as .fl-btn:active:not(:disabled), so whichever
+   comes last wins - and with the hovers last the press did nothing at all,
+   because you are always hovering the button you are pressing. */
+.fl-btn-primary:active:not(:disabled),
+.fl-btn-danger:active:not(:disabled),
+.fl-btn-quiet:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 0.06s;
+}
+
+.fl-spinner {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(83, 216, 36, 0.22);
+  border-top-color: #53d824;
+  animation: fl-spin 0.7s linear infinite;
+}
+
+/* =====================================================================
+   8. FILE PICKER
+   ===================================================================== */
+/* Same 72px box as .fl-filecard, so picking a file does not resize the field.
+   72px is the file card's real height: 14px padding + its 42px badge + 14px
+   padding + 2px border. Laid out as a row rather than a stacked column -
+   a 50px badge above a caption cannot fit in 72px, and the row also mirrors
+   the card it turns into. Still centred, so it reads as a dropzone. */
+.fl-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  padding: 0 15px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.22s ease, background 0.22s ease, transform 0.18s ease;
+}
+.fl-drop:hover { border-color: rgba(83, 216, 36, 0.4); }
+.fl-drop.is-drag {
+  border-color: #53d824;
+  border-style: solid;
+  background: rgba(83, 216, 36, 0.07);
+  transform: scale(1.005);
+}
+.fl-drop-badge {
+  /* 42px to match .fl-filecard-badge - the two states swap in place. */
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(238, 242, 238, 0.38);
+  transition: background 0.22s ease, color 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+.fl-drop-badge svg { width: 21px; height: 21px; }
+.fl-drop:hover .fl-drop-badge { color: #53d824; background: rgba(83, 216, 36, 0.12); }
+.fl-drop.is-drag .fl-drop-badge { color: #53d824; background: rgba(83, 216, 36, 0.16); transform: translateY(-3px) scale(1.06); }
+.fl-drop-title { font-size: 13.5px; color: rgba(238, 242, 238, 0.66); }
+
+.fl-filecard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 15px;
+  border: 1px solid rgba(83, 216, 36, 0.36);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(83, 216, 36, 0.08), rgba(83, 216, 36, 0.015));
+  animation: fl-pop-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+.fl-filecard-badge {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(83, 216, 36, 0.14);
+  color: #53d824;
+}
+.fl-filecard-badge svg { width: 19px; height: 19px; }
+.fl-filecard-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fl-filecard-name {
+  font-family: var(--fl-font);
+  font-size: 13px;
+  color: #eef2ee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fl-filecard-size {
+  font-family: var(--fl-font);
+  font-size: 11px;
+  color: rgba(238, 242, 238, 0.38);
+}
+
+/* =====================================================================
+   9. MULTI-BIN LIST
+   ===================================================================== */
+.fl-bin-wrap { position: relative; width: 100%; }
+/* padding-right reserves the same 14px of gutter whether the list scrolls or
+   not, so the rows keep one width as the list turns the scrollbar on.
+   When scrolling it becomes 8px padding + the 6px scrollbar-gutter, which is
+   the width the ::-webkit-scrollbar rule in section 13 sets. Change one and
+   the other has to follow. */
+.fl-bin-list { display: flex; flex-direction: column; gap: 5px; padding-right: 14px; }
+.fl-bin-list.is-scroll {
+  max-height: clamp(170px, 26vh, 250px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 8px;
+  scrollbar-gutter: stable;
+}
+.fl-bin-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) minmax(94px, 112px) auto 34px;
+  gap: 5px;
+  align-items: center;
+  animation: fl-row-in 0.3s ease both;
+}
+.fl-bin-tag {
+  height: 35px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--fl-font);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: rgba(238, 242, 238, 0.38);
+  white-space: nowrap;
+}
+.fl-bin-name {
+  min-width: 0;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  color: rgba(238, 242, 238, 0.38);
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.fl-bin-name.is-filled {
+  border-style: solid;
+  border-color: rgba(83, 216, 36, 0.36);
+  background: rgba(83, 216, 36, 0.05);
+  font-family: var(--fl-font);
+  font-size: 10px;
+  color: #eef2ee;
+}
+.fl-bin-name.is-drag { border-color: #53d824; background: rgba(83, 216, 36, 0.1); color: #53d824; }
+
+.fl-addr-wrap { position: relative; min-width: 0; width: 100%; }
+.fl-bin-addr {
+  width: 100%;
+  height: 35px;
+  padding: 0 13px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #eef2ee;
+  font-family: var(--fl-font);
+  font-size: 10px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.fl-bin-addr::placeholder {
+  font-family: var(--fl-font);
+  font-size: 10px;
+  color: rgba(238, 242, 238, 0.38);
+}
+.fl .fl-bin-addr:focus,
+.fl .fl-bin-addr:focus-visible {
+  outline: none;
+  border-color: #53d824;
+  box-shadow: 0 0 0 3px rgba(83, 216, 36, 0.1);
+}
+.fl-bin-addr:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.fl-addr-tip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 20;
+  min-width: 200px;
+  padding: 8px 11px;
+  border: 1px solid rgba(83, 216, 36, 0.36);
+  border-radius: 8px;
+  background: #12160f;
+  color: #eef2ee;
+  font-size: 11.5px;
+  text-align: center;
+  white-space: nowrap;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.22s ease, visibility 0.22s ease, transform 0.22s ease;
+}
+.fl-addr-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top-color: #53d824;
+}
+.fl-addr-wrap:hover .fl-addr-tip { visibility: visible; opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.fl-bin-browse {
+  height: 35px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(238, 242, 238, 0.66);
+  font-family: var(--fl-font);
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.12s ease;
+}
+.fl-bin-browse:hover { border-color: rgba(83, 216, 36, 0.36); background: rgba(83, 216, 36, 0.1); color: #eef2ee; }
+.fl-bin-browse:active { transform: scale(0.97); }
+
+.fl-bin-remove {
+  width: 34px;
+  height: 35px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(238, 242, 238, 0.38);
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease, transform 0.12s ease;
+}
+.fl-bin-remove svg { width: 12px; height: 12px; }
+.fl-bin-remove:hover { border-color: rgba(255, 95, 86, 0.36); background: rgba(255, 95, 86, 0.1); color: #ff5f56; }
+.fl-bin-remove:active { transform: scale(0.94); }
+.fl-bin-spacer { width: 30px; height: 34px; }
+
+.fl-bin-wrap::before,
+.fl-bin-wrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 10px;
+  height: 22px;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+/* Fades into the card surface, not the page background - the list sits inside
+   .fl-card now. */
+.fl-bin-wrap::before { top: 0; background: linear-gradient(to bottom, var(--fl-card), transparent); }
+.fl-bin-wrap::after { bottom: 0; background: linear-gradient(to top, var(--fl-card), transparent); }
+.fl-bin-wrap.can-up::before { opacity: 1; }
+.fl-bin-wrap.can-down::after { opacity: 1; }
+
+.fl-add-row { display: flex; align-items: center; gap: 14px; width: 100%; margin-top: 2px; justify-content: center; }
+.fl-add-spacer { flex: 1 1 auto; }
+.fl-add-btn {
+  width: 70%;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed rgba(83, 216, 36, 0.36);
+  border-radius: 10px;
+  background: transparent;
+  color: #53d824;
+  font-family: var(--fl-font);
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.fl-add-btn svg { width: 13px; height: 13px; }
+.fl-add-btn:hover { background: rgba(83, 216, 36, 0.1); border-color: rgba(83, 216, 36, 0.7); }
+.fl-limit-text {
+  flex: 0 0 auto;
+  font-family: var(--fl-font);
+  font-size: 10.5px;
+  color: rgba(238, 242, 238, 0.38);
+  white-space: nowrap;
+}
+
+/* =====================================================================
+   10. PROGRESS
+   ===================================================================== */
+/* Panel visuals (radius, surface, shadow) come from the shared
+   .fl-card/.fl-prog rule in section 4.
+
+   The column flex + min-height: 0 are load-bearing, not decoration: `gap`
+   needs it, and it is what lets .fl-console take the leftover height and
+   scroll internally instead of pushing the panel past its 85%. */
+.fl-prog {
+  height: 85%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(13px, 1.9vh, 20px);
+  /* 2% narrower than the original 80% */
+  width: 75%;
+  margin: 0 auto;
+  padding: clamp(20px, 3vh, 32px) clamp(20px, 2.4vw, 34px);
+}
+
+/* Headline hard left, percentage hard right, baselines aligned. */
+.fl-prog-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+.fl-prog-label {
+  /* Owns the free width, so a long chip name wraps here instead of
+     shoving the percentage off the right edge. */
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(238, 242, 238, 0.66);
+  line-height: 1.4;
+}
+/* The whole headline row runs at one size - the 14px of .fl-prog-label.
+   The chip name, the number and the % sign all inherit it (1em) instead of
+   each setting their own, so they cannot drift apart again. Colour still
+   does the work of separating them. */
+.fl-prog-chip {
+  font-family: var(--fl-font);
+  font-size: 1em;
+  color: #53d824;
+}
+/* Number and % sign share one colour - the unit no longer dims itself, so
+   "0%" reads as a single value instead of two. */
+.fl-prog-value {
+  flex: 0 0 auto;
+  font-family: var(--fl-font);
+  font-size: 14px;
+  letter-spacing: 0;
+  color: #ececec;
+  font-variant-numeric: tabular-nums;
+}
+.fl-prog-unit { font-size: 1em; letter-spacing: 0; color: inherit; margin-left: 3px; }
+/* Failure recolours the pair together, so they never split. */
+.fl-prog.is-fail .fl-prog-value { color: #ff5f56; }
+
+/* Rail: the original console rail — a hard-edged 13px well with an inset
+   phosphor glow, a three-stop green fill, and a shimmer running along it. */
+.fl-bar {
+  position: relative;
+  flex: 0 0 auto;
+  height: 13px;
+  border-radius: 2px;
+  background: #151515;
+  overflow: hidden;
+  box-shadow: inset 0 0 6px rgba(83, 216, 36, 0.25);
+}
+.fl-bar-fill {
+  position: relative;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #53d824, #6fff3a, #53d824);
+  box-shadow: 0 0 12px rgba(83, 216, 36, 0.35);
+  transition: width 0.3s ease;
+  overflow: hidden;
+}
+.fl-bar-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  left: -40%;
+  width: 40%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0.05)
+  );
+  animation: fl-shimmer 1s linear infinite;
+}
+/* The old rail had no leading head — the shimmer is the motion. */
+.fl-bar-head { display: none; }
+.fl-prog.is-fail .fl-bar-fill { background: #ff5f56; box-shadow: none; }
+.fl-prog.is-fail .fl-bar-fill::after { animation: none; }
+.fl-prog.is-done .fl-bar-fill::after { animation: none; }
+
+/* ---- stepper ---- */
+.fl-stepper {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  animation: fl-in 0.4s ease both;
+}
+.fl-stepper-track {
+  position: absolute;
+  top: 12px;
+  left: 12.5%;
+  right: 12.5%;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.11);
+  overflow: hidden;
+}
+.fl-stepper-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #53d824;
+  box-shadow: 0 0 10px rgba(83, 216, 36, 0.55);
+  transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+}
+.fl-step {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+}
+.fl-step-node {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  background: #0a0c0b;
+  color: rgba(238, 242, 238, 0.38);
+  transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
+}
+.fl-step-num {
+  font-family: var(--fl-font);
+  font-size: 12px;
+  font-weight: 600;
+}
+.fl-step-glyph { width: 14px; height: 14px; }
+.fl-step-name {
+  font-size: 11px;
+  line-height: 1.3;
+  color: rgba(238, 242, 238, 0.38);
+  /* 20ch is the longest label, "Firmware Preparation". A narrower cap forces
+     it onto two lines even where the grid column has room. Not `nowrap`: the
+     column still wins if it is genuinely too narrow, so a label wraps instead
+     of spilling into its neighbour. */
+  max-width: 20ch;
+  transition: color 0.3s ease;
+}
+
+.fl-step.is-active .fl-step-node {
+  color: #53d824;
+  border-color: #53d824;
+  animation: fl-node-pulse 2s ease-in-out infinite;
+}
+.fl-step.is-active .fl-step-name { color: #eef2ee; }
+.fl-step.is-done .fl-step-node { background: #53d824; border-color: #53d824; color: #06180a; }
+.fl-step.is-done .fl-step-name { color: rgba(238, 242, 238, 0.66); }
+.fl-step.is-failed .fl-step-node { background: #ff5f56; border-color: #ff5f56; color: #240604; }
+.fl-step.is-failed .fl-step-name { color: #ff5f56; }
+.fl-step.is-done .fl-step-glyph polyline,
+.fl-step.is-failed .fl-step-glyph line {
+  stroke-dasharray: 26;
+  stroke-dashoffset: 26;
+  animation: fl-draw 0.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+.fl-step.is-failed .fl-step-glyph line:last-child { animation-delay: 0.12s; }
+
+/* ---- completion banner ---- */
+.fl-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 16px;
+  border: 1px solid rgba(83, 216, 36, 0.36);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(83, 216, 36, 0.1), rgba(83, 216, 36, 0.02));
+  color: #eef2ee;
+  font-size: 13.5px;
+  font-weight: 500;
+  animation: fl-pop-in 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+.fl-banner-ic {
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #53d824;
+  color: #06180a;
+}
+.fl-banner-ic svg { width: 12px; height: 12px; }
+
+/* =====================================================================
+   11. CONSOLE
+   ===================================================================== */
+/* The console is the only flexible row in .fl-prog, so it absorbs whatever
+   height the fixed rows leave over. min-height is just a floor for short
+   windows - keep it low enough that the rows always fit inside the panel. */
+.fl-console {
+  position: relative;
+  flex: 1 1 0;
+  min-height: clamp(120px, 20vh, 240px);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  /* Near-black against the panel, so it reads as a recessed terminal well
+     rather than another translucent surface at the same level. */
+  background: #0b0b0b;
+  overflow: hidden;
+}
+
+/* ---- flash console: a list of results ----
+   One line per completed step: a tick (or a red cross on failure), then the
+   message. Each line fades and rises into place as it arrives (fl-in) - the
+   original log entrance. */
+.fl-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 15px 17px;
+  text-align: left;
+}
+/* Each result line rises into place as it arrives — the original log entrance. */
+.fl-log-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+  animation: fl-in 0.3s ease-out both;
+}
+/* Badge slot: an 18px disc holding the mark, nudged to sit on the first line
+   of a message that wraps. */
+.fl-log-mark {
+  flex: 0 0 auto;
+  width: 18.36px;
+  height: 18.36px;
+  margin-top: 1px;
+  display: grid;
+  place-items: center;
+  color: rgba(238, 242, 238, 0.38);
+  user-select: none;
+}
+.fl-log-mark svg {
+  width: 16.32px;
+  height: 16.32px;
+  display: block;
+}
+.fl-log-text {
+  flex: 1 1 auto;
+  font-size: 14px;
+  line-height: 1.45;
+  letter-spacing: 0.2px;
+  color: rgba(236, 236, 236, 0.85);
+  word-break: break-word;
+}
+/* OK: a bare phosphor tick, no surrounding disc or ring. */
+.fl-log-line.is-ok .fl-log-mark { color: #53d824; }
+.fl-log-line.is-ok .fl-log-mark svg circle { display: none; }
+/* FAIL: solid red disc with a white cross, as before. */
+.fl-log-line.is-fail .fl-log-mark svg circle {
+  fill: #ff4d4d;
+  fill-opacity: 1;
+  stroke: none;
+}
+.fl-log-line.is-fail .fl-log-mark svg path,
+.fl-log-line.is-fail .fl-log-mark svg polyline { stroke: #fff; }
+.fl-log-line.is-fail .fl-log-text { color: #ececec; }
+
+/* ---- UART terminal ---- */
+.fl-term { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.fl-term-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.042);
+}
+.fl-term-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--fl-font);
+  font-size: 10px;
+  letter-spacing: 1.1px;
+  color: rgba(238, 242, 238, 0.66);
+}
+.fl-term-title .fl-dot {
+  background: #53d824;
+  color: #53d824;
+  box-shadow: 0 0 8px rgba(83, 216, 36, 0.55);
+  animation: fl-blink 1.7s ease-in-out infinite;
+}
+.fl-term-clear {
+  flex: 0 0 auto;
+  padding: 5px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(238, 242, 238, 0.66);
+  font-family: var(--fl-font);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.fl-term-clear:hover { border-color: rgba(83, 216, 36, 0.36); color: #eef2ee; }
+/* Post-flash device print output. Deliberately LEFT AS IT WAS - only the class
+   names moved. Monospace, because the device's printf output lines columns up
+   and a proportional face breaks that; top-aligned rather than vertically
+   centred, so the first line stays where it has always been; and a plain
+   left-aligned placeholder with no blinking caret.
+
+   Its scrollbar is set here rather than in the shared rule in section 13, for
+   the same reason - these are the values the panel already had. */
+.fl-term-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px;
+  font-family: Consolas, "Cascadia Mono", "SF Mono", Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #53d824;
+  text-align: center;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(84, 216, 36, 0.87) transparent;
+}
+.fl-term-body > div { white-space: pre-wrap; word-break: break-word; }
+.fl-term-body::-webkit-scrollbar { width: 6px; }
+.fl-term-body::-webkit-scrollbar-track { background: transparent; }
+.fl-term-body::-webkit-scrollbar-thumb { background: rgba(83, 216, 36, 0.35); border-radius: 999px; }
+.fl-term-body::-webkit-scrollbar-thumb:hover { background: rgba(83, 216, 36, 0.55); }
+.fl-term-empty {
+  font-family: "Gilroy-Medium", "Segoe UI", sans-serif;
+  font-size: 12.5px;
+  color: rgba(241, 243, 239, 0.4);
+  text-align: left;
+  padding-top: 2px;
+}
+
+/* =====================================================================
+   12. RESULT - success / failure
+   ===================================================================== */
+.fl-result {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: safe center;
+  gap: 22px;
+  padding: 28px;
+  text-align: center;
+  /* The console is a fixed height now, so a long failure message has to
+     scroll rather than be clipped by it. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.fl-result-badge { position: relative; flex: 0 0 auto; width: 78px; height: 78px; display: grid; place-items: center; }
+.fl-result-badge::before {
+  content: "";
+  position: absolute;
+  inset: -34px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(83, 216, 36, 0.14), transparent 40%);
+  animation: fl-fade-in 0.8s ease 0.3s both;
+}
+.fl-result-badge svg { width: 78px; height: 78px; overflow: visible; }
+
+.fl-result-ring {
+  fill: none;
+  stroke: #53d824;
+  stroke-width: 2;
+  stroke-dasharray: 145;
+  stroke-dashoffset: 145;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  animation: fl-draw-ring 0.75s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+.fl-result-glyph {
+  fill: none;
+  stroke: #53d824;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: fl-draw-glyph 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.42s forwards;
+}
+.fl-result.is-ok .fl-result-glyph { stroke-dasharray: 32; stroke-dashoffset: 32; }
+.fl-result.is-fail .fl-result-glyph { stroke-dasharray: 48; stroke-dashoffset: 48; }
+
+.fl-result-ripple {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid #53d824;
+  opacity: 0;
+  animation: fl-ripple-out 1.2s ease-out 0.75s;
+}
+
+.fl-result.is-fail .fl-result-ring,
+.fl-result.is-fail .fl-result-glyph { stroke: #ff5f56; }
+.fl-result.is-fail .fl-result-ripple { border-color: #ff5f56; }
+.fl-result.is-fail .fl-result-badge::before { background: radial-gradient(circle, rgba(255, 95, 86, 0.14), transparent 40%); }
+
+.fl-result-msg {
+  margin: 0;
+  max-width: 46ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #eef2ee;
+  animation: fl-in 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) 0.5s both;
+}
+.fl-result.is-fail .fl-result-msg { color: rgba(255, 214, 211, 0.95); }
+
+/* =====================================================================
+   13. SHARED
+   ===================================================================== */
+.fl-dots { display: inline-block; width: 15px; text-align: left; }
+.fl-dots::after { content: "..."; animation: fl-ellipsis 1.2s steps(4, end) infinite; }
+
+/* .fl-page is in these lists because it is the wizard's scroller now - the
+   two pages are absolute, so .fl-screen has nothing left to scroll.
+   .fl-term-body is deliberately NOT here: it keeps the scrollbar the print
+   panel already had, set alongside the rest of that panel in section 11. */
+.fl-screen::-webkit-scrollbar,
+.fl-page::-webkit-scrollbar,
+.fl-log::-webkit-scrollbar,
+.fl-bin-list::-webkit-scrollbar { width: 6px; }
+.fl-screen::-webkit-scrollbar-track,
+.fl-page::-webkit-scrollbar-track,
+.fl-log::-webkit-scrollbar-track,
+.fl-bin-list::-webkit-scrollbar-track { background: transparent; }
+.fl-screen::-webkit-scrollbar-thumb,
+.fl-page::-webkit-scrollbar-thumb,
+.fl-log::-webkit-scrollbar-thumb,
+.fl-bin-list::-webkit-scrollbar-thumb { background: rgba(83, 216, 36, 0.28); border-radius: 999px; }
+.fl-screen, .fl-page, .fl-log, .fl-bin-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(83, 216, 36, 0.3) transparent;
+}
+
+body.dragging { cursor: no-drop; }
+
+/* =====================================================================
+   14. DEVICE GRAPHIC
+   ---------------------------------------------------------------------
+   Two independent layers of state on one graphic:
+
+     .is-off / .is-scan / .is-ready / .is-flash / .is-done / .is-fail
+        coarse hardware state - what the probe can see. Owns the resting
+        colour of the halo, the probe LED and the chip.
+
+     .st-<stage>   (FLASH_STAGES in Flasher.jsx)
+        the exact device event that last landed. Owns the MOTION: every
+        stage switches on exactly one signature animation, so each status
+        line on the right has a physical counterpart on the left.
+
+          prep        probe wakes, indeterminate stripe on the readout
+          checked     readout latches to determinate, face flashes
+          built       ribbon lanes energise one lane at a time
+          linked      handshake ripple across the header pins, PWR on
+          verified    current runs the traces into the chip
+          ready       cell array powers up inside the die
+          ident       one ID-read pass down the die
+          checkedmem  erase wash sweeps the die
+          writing     fill rises behind a lit write head, ACT blinks
+          firstboot   bootloader sector latches
+          header      header sector latches
+          application application sector latches
+          sealed      link goes quiet, target boots, board sweep
+          fault       red hold
+
+   The stage layer must stay the only owner of ribbon/trace motion - if
+   .is-flash animates them too, the flow starts at 5% and every stage
+   after it looks identical.
+   ===================================================================== */
+/* ---- resting palette -------------------------------------------------
+   These neutrals are the board with NO target detected, which is a state
+   the user sits in whenever the hardware is not plugged in yet - so it has
+   to be legible on its own, not just as a dim precursor to the green
+   detected state. Everything here is deliberately brighter than a "dimmed"
+   look would suggest; the detected/flashing states differentiate by HUE
+   (amber, green, red), not by being the only readable version of the
+   board. ---- */
+.fl-dev-halo { fill: rgba(255, 255, 255, 0.1); filter: blur(26px); transition: fill 0.4s ease; }
+/* Tighter inner glow. Separate from the halo so the chip can gain presence
+   during the write without inflating the whole ambient wash. */
+.fl-dev-core { fill: rgba(83, 216, 36, 0); filter: blur(18px); transition: fill 0.5s ease; }
+.fl-dev-cable { stroke: rgba(255, 255, 255, 0.26); stroke-width: 3.5; stroke-linecap: round; fill: none; }
+/* Contact shadows. Deliberately on the two STATIC rects and not on their
+   groups: a filter over an animating subtree makes the browser re-render
+   the whole filter region every frame, and the die animates constantly. */
+.fl-dev-probe-body { fill: #232927; stroke: rgba(255, 255, 255, 0.26); stroke-width: 1; filter: drop-shadow(0 5px 9px rgba(0, 0, 0, 0.5)); }
+/* If this fill changes, change the 100% stop of @keyframes fl-face-flash to
+   match - that animation returns the face to its resting colour by name. */
+.fl-dev-probe-face { fill: #131917; stroke: rgba(255, 255, 255, 0.12); stroke-width: 1; }
+.fl-dev-led { fill: rgba(238, 242, 238, 0.5); transition: fill 0.3s ease; }
+.fl-dev-brand {
+  fill: rgba(238, 242, 238, 0.55);
+  font-family: var(--fl-font);
+  font-size: 9px;
+  letter-spacing: 2.2px;
+  text-anchor: middle;
+}
+/* ---- probe readout - PARKED --------------------------------------------
+   The .fl-dev-io group is not in the markup at the moment. These rules are
+   kept because they are the only copy: re-add the three rects inside
+   .fl-dev-probe in Flasher.jsx and the readout works again.
+
+   If it comes back: .fl-dev-io-bar is scaled by real progress from the JSX,
+   so it must never be the target of a transform animation - anything that
+   needs to flash on this readout animates the track, the stripe or the face
+   instead. Its two stage hooks (st-prep, st-checked) are parked in 14b. ---- */
+.fl-dev-io-track { fill: rgba(255, 255, 255, 0.07); }
+.fl-dev-io-bar {
+  fill: rgba(238, 242, 238, 0.3);
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.3, 1), fill 0.35s ease;
+}
+/* Indeterminate pass, for the window where the host is working and the
+   device has nothing to report yet. */
+.fl-dev-io-stripe {
+  fill: rgba(240, 180, 41, 0.55);
+  opacity: 0;
+  clip-path: inset(0 70% 0 0 round 2.5px);
+}
+
+.fl-dev-ribbon path { fill: none; stroke: rgba(255, 255, 255, 0.26); stroke-width: 2; stroke-linecap: round; transition: stroke 0.3s ease; }
+
+/* ---- data on the ribbon: a dot stream per lane, running down onto the
+        board. Same construction as .fl-dev-trace-fx below - a dashed stroke
+        whose offset animates - so the ribbon and the traces inside the board
+        read as one continuous path into the chip.
+
+        Short dashes, not dots: butt caps keep each mark a clean 5.5-unit bar
+        instead of letting the cap round it back into a blob. The dash
+        pattern sums to exactly 12 (5.5 + 6.5) because fl-trace-flow travels
+        -24 - two whole periods - and any other total makes the loop jump on
+        every repeat. Lengthen the dash by borrowing from the gap, never by
+        changing the total. ---- */
+.fl-dev-pkts path {
+  fill: none;
+  stroke: #8ef25f;
+  stroke-width: 2.4;
+  stroke-linecap: butt;
+  stroke-dasharray: 5.5 6.5;
+  opacity: 0;
+}
+
+.fl-dev-board { transition: opacity 0.3s ease; }
+.fl-dev-pcb { fill: #18211c; stroke: rgba(255, 255, 255, 0.28); stroke-width: 1; filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.55)); }
+.fl-dev-pcb-inner { fill: none; stroke: rgba(83, 216, 36, 0.18); stroke-width: 1; stroke-dasharray: 4 6; }
+/* Holes stay near-black: the PCB around them is lighter now, so contrast
+   comes from the hole being dark, not from the board being dark. */
+.fl-dev-hole { fill: #060807; stroke: rgba(255, 255, 255, 0.3); stroke-width: 1; }
+.fl-dev-header { fill: #1f2620; stroke: rgba(255, 255, 255, 0.3); stroke-width: 1; }
+.fl-dev-header-pins circle { fill: rgba(238, 242, 238, 0.48); }
+.fl-dev-trace path { fill: none; stroke: rgba(255, 255, 255, 0.22); stroke-width: 1.5; transition: stroke 0.3s ease; }
+/* Live current on the same three traces. Same 5.5 + 6.5 dash as the ribbon
+   above - one dash language for the whole path into the chip - just on a
+   thinner stroke, because a PCB trace is finer than a ribbon lane. */
+.fl-dev-trace-fx path {
+  fill: none;
+  stroke: #8ef25f;
+  stroke-width: 1.6;
+  stroke-linecap: butt;
+  stroke-dasharray: 5.5 6.5;
+  opacity: 0;
+}
+.fl-dev-smd rect { fill: #2a322c; stroke: rgba(255, 255, 255, 0.16); stroke-width: 1; }
+
+/* ---- board indicators. PWR latches, ACT only lives while the device is
+        being written to - a blinking activity LED with nothing being written
+        is the one thing that would make the whole graphic read as fake. ---- */
+.fl-dev-pwrled,
+.fl-dev-actled {
+  fill: #2a322c;
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 1;
+  transition: fill 0.3s ease;
+}
+
+.fl-dev-pins rect { fill: rgba(238, 242, 238, 0.36); transition: fill 0.3s ease; }
+.fl-dev-chip-glow { fill: #53d824; opacity: 0; filter: blur(9px); transition: opacity 0.5s ease; }
+.fl-dev-chip-body { fill: #1c231e; stroke: rgba(255, 255, 255, 0.3); stroke-width: 1; transition: stroke 0.3s ease; }
+/* The die stays the darkest thing on the board on purpose - it is unwritten
+   memory, and the fill, array and scan passes all have to read against it.
+   Its outline carries the visibility instead. */
+.fl-dev-die { fill: #0a0d0b; stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; transition: fill 0.4s ease; }
+
+/* ---- inside the die -------------------------------------------------- */
+
+/* Cell array. Dark until the controller initialises the memory, which is
+   what makes "Flash memory initialised" a visible event instead of a line
+   of text. */
+.fl-dev-array path {
+  fill: none;
+  stroke: rgba(83, 216, 36, 0.5);
+  stroke-width: 0.6;
+}
+.fl-dev-array { opacity: 0; transition: opacity 0.5s ease; }
+
+.fl-dev-fill { fill: url(#flFillGrad); transition: y 0.5s cubic-bezier(0.3, 0.8, 0.35, 1), height 0.5s cubic-bezier(0.3, 0.8, 0.35, 1); }
+/* Write head. The 2px line at the top of the fill - given a glow only while
+   a write is actually in flight. */
+.fl-dev-fill-edge { fill: #8ef25f; transition: y 0.5s cubic-bezier(0.3, 0.8, 0.35, 1); }
+
+/* Committed sectors. Off until their status code lands, then latched: the
+   band flashes once and stays brighter than the surrounding fill, so the
+   die ends up as a readable map of what was written. */
+.fl-dev-sector {
+  fill: rgba(83, 216, 36, 0.3);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.fl-dev-sector.is-on {
+  opacity: 1;
+  animation: fl-sector-latch 0.85s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+/* Three different densities, so the finished die reads as a map of three
+   images rather than one flat block: bootloader (small, densest) at the
+   bottom, header above it, application filling the rest. */
+.fl-dev-sector.s-boot { fill: rgba(83, 216, 36, 0.42); }
+.fl-dev-sector.s-hdr  { fill: rgba(83, 216, 36, 0.3); }
+.fl-dev-sector.s-app  { fill: rgba(83, 216, 36, 0.2); }
+
+/* One-shot passes over the die. Both are parked invisible and only run for
+   the single stage that owns them. */
+.fl-dev-scan { fill: url(#flScanGrad); opacity: 0; }
+.fl-dev-erase { fill: url(#flEraseGrad); opacity: 0; }
+
+.fl-dev-pin1 { fill: rgba(238, 242, 238, 0.42); }
+
+/* ---- completion: target boots on its own firmware ---- */
+.fl-dev-boot circle { fill: #2a322c; stroke: rgba(255, 255, 255, 0.16); stroke-width: 1; }
+.fl-dev-bootsweep { fill: url(#flBootGrad); opacity: 0; }
+
+/* ---- per-update acknowledgement. Remounted on every stage change (keyed in
+        the JSX), which is what restarts these. ---- */
+.fl-dev-ring {
+  fill: none;
+  stroke: rgba(83, 216, 36, 0.55);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+.fl-dev-mark {
+  fill: rgba(238, 242, 238, 0.8);
+  font-family: var(--fl-font);
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-anchor: middle;
+  paint-order: stroke;
+  /* Matches .fl-dev-die's fill - this is the knockout that keeps the part
+     number legible over the array and the fill. Track that value. */
+  stroke: #0a0d0b;
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+.fl-dev-silk {
+  fill: rgba(238, 242, 238, 0.4);
+  font-family: var(--fl-font);
+  font-size: 10px;
+  letter-spacing: 2.4px;
+  text-anchor: middle;
+}
+.fl-dev-edge { fill: rgba(240, 180, 41, 0.45); }
+
+/* ---- the ribbon is a THREAD, never a flow -------------------------------
+   The cable does not carry data because a probe happens to be plugged in, so
+   these states only ever change its COLOUR: faint when there is no probe,
+   amber while the target is being identified, green once it answers. The
+   only thing that ever moves on the ribbon is .fl-dev-pkts during the flash
+   itself, from st-built onward. Nothing here may set stroke-dasharray or an
+   animation on .fl-dev-ribbon. ---- */
+/* No probe. Still has to be READABLE - the user sits here while plugging the
+   hardware in - so this is a slight knock-back, not the near-invisible 0.5 it
+   used to be. */
+.fl-dev.is-off { opacity: 0.82; }
+.fl-dev.is-off .fl-dev-ribbon path { stroke: rgba(255, 255, 255, 0.18); }
+
+.fl-dev.is-scan .fl-dev-halo { fill: rgba(240, 180, 41, 0.16); }
+.fl-dev.is-scan .fl-dev-led { fill: #f0b429; animation: fl-blink 1.1s ease-in-out infinite; }
+.fl-dev.is-scan .fl-dev-ribbon path { stroke: rgba(240, 180, 41, 0.42); }
+.fl-dev.is-scan .fl-dev-chip-body { stroke: rgba(240, 180, 41, 0.36); }
+
+.fl-dev.is-ready .fl-dev-halo,
+.fl-dev.is-flash .fl-dev-halo,
+.fl-dev.is-done .fl-dev-halo { fill: rgba(83, 216, 36, 0.16); }
+.fl-dev.is-ready .fl-dev-led,
+.fl-dev.is-flash .fl-dev-led,
+.fl-dev.is-done .fl-dev-led { fill: #53d824; }
+.fl-dev.is-ready .fl-dev-ribbon path,
+.fl-dev.is-done .fl-dev-ribbon path { stroke: rgba(83, 216, 36, 0.36); }
+.fl-dev.is-ready .fl-dev-chip-body,
+.fl-dev.is-flash .fl-dev-chip-body,
+.fl-dev.is-done .fl-dev-chip-body { stroke: rgba(83, 216, 36, 0.36); }
+.fl-dev.is-ready .fl-dev-pins rect,
+.fl-dev.is-flash .fl-dev-pins rect,
+.fl-dev.is-done .fl-dev-pins rect { fill: rgba(83, 216, 36, 0.45); }
+.fl-dev.is-ready .fl-dev-mark,
+.fl-dev.is-done .fl-dev-mark { fill: #53d824; }
+
+.fl-dev.is-flash .fl-dev-halo { animation: fl-halo 2.4s ease-in-out infinite; }
+/* Ribbon and trace MOTION belongs to the stage layer below - see the header
+   note. Nor does .is-flash colour the ribbon: the lanes have to stay dark
+   until the image is actually built, or "the ribbon energises" is not an
+   event any more. */
+.fl-dev.is-flash .fl-dev-mark { fill: #eef2ee; }
+.fl-dev.is-done .fl-dev-die { fill: rgba(83, 216, 36, 0.1); }
+
+.fl-dev.is-fail .fl-dev-halo { fill: rgba(255, 95, 86, 0.14); }
+.fl-dev.is-fail .fl-dev-led { fill: #ff5f56; }
+.fl-dev.is-fail .fl-dev-ribbon path { stroke: rgba(255, 95, 86, 0.36); }
+.fl-dev.is-fail .fl-dev-chip-body { stroke: rgba(255, 95, 86, 0.36); }
+.fl-dev.is-fail .fl-dev-mark { fill: #ff5f56; }
+.fl-dev.is-fail .fl-dev-fill { fill: rgba(255, 95, 86, 0.2); }
+.fl-dev.is-fail .fl-dev-fill-edge { fill: #ff5f56; }
+
+/* =====================================================================
+   14b. STAGE CHOREOGRAPHY
+   ---------------------------------------------------------------------
+   Read this as a storyboard: one block per device event, each turning on
+   the one thing that makes that event visible. Ordering matters - later
+   blocks are written to inherit the steady state of earlier ones, so the
+   board accumulates state as the flash advances instead of resetting.
+   ===================================================================== */
+
+/* ---- 1. prep - the probe wakes up and starts working. Nothing is on the
+        board yet, so the only change is on the probe itself: the LED goes
+        amber and starts blinking, and the ambient light warms to match. ---- */
+.fl-dev.st-prep .fl-dev-led { fill: #f0b429; animation: fl-blink 1s ease-in-out infinite; }
+.fl-dev.st-prep .fl-dev-halo { fill: rgba(240, 180, 41, 0.12); }
+/* PARKED with the .fl-dev-io group - see section 14. */
+.fl-dev.st-prep .fl-dev-io-stripe { opacity: 1; animation: fl-io-stripe 1.5s ease-in-out infinite; }
+.fl-dev.st-prep .fl-dev-io-bar { fill: rgba(240, 180, 41, 0.22); }
+
+/* ---- 2. checked - the firmware is real and its size is known. The probe
+        face flashes green once: the host has accepted the image. ---- */
+.fl-dev.st-checked .fl-dev-led { fill: #f0b429; animation: fl-blink 1.4s ease-in-out infinite; }
+.fl-dev.st-checked .fl-dev-probe-face { animation: fl-face-flash 0.9s ease-out both; }
+/* PARKED with the .fl-dev-io group - see section 14. */
+.fl-dev.st-checked .fl-dev-io-bar { fill: rgba(83, 216, 36, 0.7); }
+.fl-dev.st-checked .fl-dev-io-track { animation: fl-io-latch 0.9s ease-out both; }
+
+/* ---- 3. built - image is linked and validated: the host now has something
+        to send, so the ribbon starts carrying data. The dots arrive lane by
+        lane, which is what makes "build complete" the visible event rather
+        than just the moment a flow speeds up. ---- */
+.fl-dev.st-built .fl-dev-pkts path,
+.fl-dev.st-linked .fl-dev-pkts path,
+.fl-dev.st-verified .fl-dev-pkts path,
+.fl-dev.st-ready .fl-dev-pkts path,
+.fl-dev.st-ident .fl-dev-pkts path,
+.fl-dev.st-checkedmem .fl-dev-pkts path {
+  opacity: 0.85;
+  /* Control traffic: unhurried. The payload rate arrives at "writing". */
+  animation: fl-trace-flow 1.7s linear infinite;
+  animation-delay: calc(var(--i) * -340ms);
+}
+/* Two animations, so neither fights the other for a property: fl-trace-flow
+   owns stroke-dashoffset (the travel), fl-lane-arm owns opacity (the
+   arrival). Their delays are listed in the same order. */
+.fl-dev.st-built .fl-dev-pkts path {
+  animation:
+    fl-trace-flow 1.7s linear infinite,
+    fl-lane-arm 0.45s ease-out both;
+  animation-delay: calc(var(--i) * -340ms), calc(var(--i) * 120ms);
+}
+.fl-dev.st-built .fl-dev-led { fill: #53d824; animation: fl-blink 1.6s ease-in-out infinite; }
+
+/* ---- 4. linked - JTAG is up. The handshake happens on the header pins, so
+        that is where the motion goes, and PWR latches on. ---- */
+.fl-dev.st-linked .fl-dev-header-pins circle {
+  animation: fl-pin-handshake 1.6s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 120ms);
+}
+.fl-dev.st-linked .fl-dev-led { fill: #53d824; animation: fl-blink 0.9s ease-in-out infinite; }
+
+/* PWR stays on for the rest of the session once the link exists. */
+.fl-dev.st-linked .fl-dev-pwrled,
+.fl-dev.st-verified .fl-dev-pwrled,
+.fl-dev.st-ready .fl-dev-pwrled,
+.fl-dev.st-ident .fl-dev-pwrled,
+.fl-dev.st-checkedmem .fl-dev-pwrled,
+.fl-dev.st-writing .fl-dev-pwrled,
+.fl-dev.st-firstboot .fl-dev-pwrled,
+.fl-dev.st-header .fl-dev-pwrled,
+.fl-dev.st-application .fl-dev-pwrled,
+.fl-dev.st-sealed .fl-dev-pwrled { fill: #53d824; }
+
+/* ---- 5. verified - the target answered on the selected interface, so
+        current now reaches the chip: the traces from the header into the
+        die start carrying packets. ---- */
+.fl-dev.st-verified .fl-dev-trace-fx path,
+.fl-dev.st-ready .fl-dev-trace-fx path,
+.fl-dev.st-ident .fl-dev-trace-fx path,
+.fl-dev.st-checkedmem .fl-dev-trace-fx path,
+.fl-dev.st-writing .fl-dev-trace-fx path,
+.fl-dev.st-firstboot .fl-dev-trace-fx path,
+.fl-dev.st-header .fl-dev-trace-fx path,
+.fl-dev.st-application .fl-dev-trace-fx path {
+  opacity: 0.9;
+  animation: fl-trace-flow 0.75s linear infinite;
+  animation-delay: calc(var(--i) * -250ms);
+}
+.fl-dev.st-verified .fl-dev-chip-glow { opacity: 0.1; }
+.fl-dev.st-verified .fl-dev-core { fill: rgba(83, 216, 36, 0.1); }
+.fl-dev.st-verified .fl-dev-led { fill: #53d824; animation: fl-blink 0.8s ease-in-out infinite; }
+
+/* The ribbon dots are already running from "built" (block 3) at control-
+   traffic rate; the traces above are the new part here - the same stream
+   continuing off the ribbon and into the die. */
+
+/* ---- 6. ready - the flash controller is initialised, so the cell array
+        inside the die powers up. First time anything is visible INSIDE the
+        chip, which is why it lands as its own event. ---- */
+.fl-dev.st-ready .fl-dev-array,
+.fl-dev.st-ident .fl-dev-array,
+.fl-dev.st-checkedmem .fl-dev-array,
+.fl-dev.st-writing .fl-dev-array,
+.fl-dev.st-firstboot .fl-dev-array,
+.fl-dev.st-header .fl-dev-array,
+.fl-dev.st-application .fl-dev-array,
+.fl-dev.st-sealed .fl-dev-array { opacity: 0.4; }
+.fl-dev.st-ready .fl-dev-array { animation: fl-array-in 1s ease-out both; }
+.fl-dev.st-ready .fl-dev-die { fill: rgba(83, 216, 36, 0.05); }
+.fl-dev.st-ready .fl-dev-pin1 { fill: #53d824; animation: fl-blink 0.7s ease-in-out infinite; }
+
+/* ---- 7. ident - the device ID is read back. One pass of the read head
+        down the array, then it parks. ---- */
+.fl-dev.st-ident .fl-dev-scan { animation: fl-die-scan 1.05s cubic-bezier(0.4, 0, 0.6, 1) 2 both; }
+.fl-dev.st-ident .fl-dev-die { fill: rgba(83, 216, 36, 0.05); }
+.fl-dev.st-ident .fl-dev-array { opacity: 0.55; }
+
+/* ---- 8. checkedmem - write/read check passed: the erase wash runs down
+        the die. Deliberately white, not green - it is the one operation
+        that removes rather than adds. ---- */
+.fl-dev.st-checkedmem .fl-dev-erase { animation: fl-die-erase 1.15s cubic-bezier(0.35, 0, 0.5, 1) both; }
+.fl-dev.st-checkedmem .fl-dev-die { fill: rgba(83, 216, 36, 0.05); }
+.fl-dev.st-checkedmem .fl-dev-array { opacity: 0.5; }
+
+/* ---- 9. writing - the real programming pass. Everything upstream runs at
+        payload rate, the write head glows, and ACT blinks because the
+        device is genuinely being written to. ---- */
+/* Payload rate: the same dot stream as before, three times faster and at
+   full brightness. Speeding up a flow the eye has already been watching for
+   a minute is a bigger read than any new element would be. */
+.fl-dev.st-writing .fl-dev-pkts path,
+.fl-dev.st-firstboot .fl-dev-pkts path,
+.fl-dev.st-header .fl-dev-pkts path,
+.fl-dev.st-application .fl-dev-pkts path {
+  opacity: 1;
+  animation: fl-trace-flow 0.55s linear infinite;
+  animation-delay: calc(var(--i) * -110ms);
+}
+.fl-dev.st-writing .fl-dev-actled,
+.fl-dev.st-firstboot .fl-dev-actled,
+.fl-dev.st-header .fl-dev-actled,
+.fl-dev.st-application .fl-dev-actled {
+  fill: #f0b429;
+  animation: fl-blink 0.28s steps(2, end) infinite;
+}
+.fl-dev.st-writing .fl-dev-fill-edge,
+.fl-dev.st-firstboot .fl-dev-fill-edge,
+.fl-dev.st-header .fl-dev-fill-edge,
+.fl-dev.st-application .fl-dev-fill-edge {
+  animation: fl-write-head 0.9s ease-in-out infinite;
+}
+.fl-dev.st-writing .fl-dev-die,
+.fl-dev.st-firstboot .fl-dev-die,
+.fl-dev.st-header .fl-dev-die,
+.fl-dev.st-application .fl-dev-die { fill: rgba(83, 216, 36, 0.06); }
+.fl-dev.st-writing .fl-dev-chip-glow { opacity: 0.16; animation: fl-halo 1.8s ease-in-out infinite; }
+.fl-dev.st-writing .fl-dev-core { fill: rgba(83, 216, 36, 0.14); }
+.fl-dev.st-writing .fl-dev-led { fill: #53d824; animation: fl-blink 0.4s ease-in-out infinite; }
+
+/* ---- 10-12. sector commits. Each image that lands latches its own band of
+        the die (see .fl-dev-sector.is-on), and the chip gains a little more
+        presence as the map fills in. ---- */
+.fl-dev.st-firstboot .fl-dev-chip-glow { opacity: 0.18; }
+.fl-dev.st-header .fl-dev-chip-glow { opacity: 0.22; }
+.fl-dev.st-application .fl-dev-chip-glow { opacity: 0.28; }
+.fl-dev.st-firstboot .fl-dev-core { fill: rgba(83, 216, 36, 0.16); }
+.fl-dev.st-header .fl-dev-core { fill: rgba(83, 216, 36, 0.18); }
+.fl-dev.st-application .fl-dev-core { fill: rgba(83, 216, 36, 0.22); }
+.fl-dev.st-firstboot .fl-dev-led,
+.fl-dev.st-header .fl-dev-led,
+.fl-dev.st-application .fl-dev-led { fill: #53d824; animation: fl-blink 0.4s ease-in-out infinite; }
+
+/* ---- 13. sealed - the flash is done and the J-Link has been released, so
+        the traffic STOPS. The board takes over: sweep down the PCB, boot
+        indicators come up in sequence, part marking lights. Quiet after
+        motion is what sells "finished". ---- */
+/* The ribbon going quiet is the point: no dots, and the physical lanes fall
+   back to their resting colour from .is-done. */
+.fl-dev.st-sealed .fl-dev-pkts path { opacity: 0; }
+.fl-dev.st-sealed .fl-dev-array { opacity: 0.5; }
+.fl-dev.st-sealed .fl-dev-sector { opacity: 1; }
+.fl-dev.st-sealed .fl-dev-bootsweep { animation: fl-boot-sweep 1.5s cubic-bezier(0.35, 0, 0.4, 1) 0.15s both; }
+.fl-dev.st-sealed .fl-dev-boot circle {
+  fill: #53d824;
+  animation: fl-boot-led 0.6s ease-out both;
+  animation-delay: calc(1000ms + var(--i) * 180ms);
+}
+.fl-dev.st-sealed .fl-dev-chip-glow { opacity: 0.3; }
+.fl-dev.st-sealed .fl-dev-core { fill: rgba(83, 216, 36, 0.2); }
+.fl-dev.st-sealed .fl-dev-pwrled { fill: #53d824; }
+.fl-dev.st-sealed .fl-dev-mark { animation: fl-mark-lift 0.9s ease-out 0.6s both; }
+
+/* ---- fault - the board holds red at whatever it had reached. No flow, no
+        blinking write head: the point is that nothing is moving. ---- */
+.fl-dev.st-fault .fl-dev-pkts path { opacity: 0; }
+.fl-dev.st-fault .fl-dev-trace-fx path { opacity: 0; }
+.fl-dev.st-fault .fl-dev-array { opacity: 0.22; }
+.fl-dev.st-fault .fl-dev-array path { stroke: rgba(255, 95, 86, 0.4); }
+.fl-dev.st-fault .fl-dev-chip-glow { fill: #ff5f56; opacity: 0.16; }
+.fl-dev.st-fault .fl-dev-core { fill: rgba(255, 95, 86, 0.12); }
+.fl-dev.st-fault .fl-dev-actled { fill: #ff5f56; }
+.fl-dev.st-fault .fl-dev-io-bar { fill: rgba(255, 95, 86, 0.6); }
+.fl-dev.st-fault .fl-dev-ring { stroke: rgba(255, 95, 86, 0.6); }
+
+/* ---- the per-update ring. Runs for every stage except the resting one, so
+        no status line ever lands without something moving. ---- */
+.fl-dev:not(.st-idle) .fl-dev-ring.r1 { animation: fl-dev-ring 1.15s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.fl-dev:not(.st-idle) .fl-dev-ring.r2 { animation: fl-dev-ring 1.15s cubic-bezier(0.2, 0.7, 0.3, 1) 0.18s both; }
+
+/* =====================================================================
+   14c. VIZ READOUT  (caption + segment meter under the board)
+   ===================================================================== */
+.fl-viz-readout {
+  flex: 0 0 auto;
+  width: min(100%, 250px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-top-color: rgba(255, 255, 255, 0.11);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+}
+.fl-viz-op {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.fl-viz-op-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(238, 242, 238, 0.3);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.fl-viz-op-text {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: rgba(238, 242, 238, 0.62);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Keyed off the stage class in the JSX, so the caption itself re-animates on
+   every update - the text swap alone is too easy to miss. */
+.fl-viz-readout .fl-viz-op-text { animation: fl-op-in 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+.fl-viz-readout:not(.st-idle):not(.st-fault) .fl-viz-op-dot {
+  background: #53d824;
+  box-shadow: 0 0 0 3px rgba(83, 216, 36, 0.14);
+  animation: fl-blink 1.4s ease-in-out infinite;
+}
+.fl-viz-readout:not(.st-idle):not(.st-fault) .fl-viz-op-text { color: rgba(238, 242, 238, 0.9); }
+.fl-viz-readout.st-prep .fl-viz-op-dot,
+.fl-viz-readout.st-checked .fl-viz-op-dot {
+  background: #f0b429;
+  box-shadow: 0 0 0 3px rgba(240, 180, 41, 0.14);
+}
+.fl-viz-readout.st-sealed .fl-viz-op-dot { animation: none; }
+.fl-viz-readout.st-fault .fl-viz-op-dot { background: #ff5f56; box-shadow: 0 0 0 3px rgba(255, 95, 86, 0.16); }
+.fl-viz-readout.st-fault .fl-viz-op-text { color: #ffb3af; }
+
+.fl-viz-meter {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+}
+.fl-viz-seg {
+  flex: 1 1 0;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+.fl-viz-seg.is-on {
+  background: rgba(83, 216, 36, 0.85);
+  box-shadow: 0 0 6px rgba(83, 216, 36, 0.35);
+  animation: fl-seg-in 0.4s ease-out both;
+  animation-delay: calc(var(--i) * 22ms);
+}
+.fl-viz-readout.st-fault .fl-viz-seg.is-on {
+  background: rgba(255, 95, 86, 0.8);
+  box-shadow: none;
+}
+
+/* =====================================================================
+   15. CUSTOM DROPDOWN
+   ===================================================================== */
+.dd { position: relative; width: 100%; }
+.fl-field-board {
+  position: relative;
+  z-index: 100;
+}
+.dd-trigger {
+  width: 100%;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #eef2ee;
+  font-family: var(--fl-font);
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dd-trigger:hover { border-color: rgba(255, 255, 255, 0.16); }
+.dd.open .dd-trigger { border-color: #53d824; }
+.dd-placeholder .dd-value {
+  font-family: var(--fl-font);
+  font-size: 13.5px;
+  color: rgba(238, 242, 238, 0.38);
+}
+/* Centred on the TRIGGER's midline, not just inside its own box: the left
+   margin balances the arrow (14px) plus the flex gap (10px) sitting to the
+   right of the text. Without it the value reads visibly left of centre. */
+.dd-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: calc(14px + 10px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.dd-arrow { flex: 0 0 14px; width: 14px; height: 14px; color: #53d824; transition: transform 0.25s ease; }
+.dd.open .dd-arrow { transform: rotate(180deg); }
+.dd-panel {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  /* panel is 20% shorter than before: 4.8px padding + 28.8px rows,
+     both scaled from the original 6px / 36px */
+  padding: 4.8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 10px;
+  background: #0a0a0a;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7);
+  transform-origin: top center;
+  opacity: 0;
+  transform: translateY(-6px) scaleY(0.96);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.dd.open .dd-panel { opacity: 1; transform: translateY(0) scaleY(1); pointer-events: auto; }
+.dd-option {
+  width: 100%;
+  height: 28.8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(238, 242, 238, 0.66);
+  font-family: var(--fl-font);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dd-option:hover { background: rgba(255, 255, 255, 0.07); color: #eef2ee; }
+.dd.open .dd-option { animation: fl-dd-item 0.26s ease both; animation-delay: calc(var(--i) * 0.04s + 0.04s); }
+.dd-option.active { background: rgba(83, 216, 36, 0.1); color: #53d824; }
+.dd-check { flex: 0 0 13px; width: 13px; text-align: center; color: #53d824; font-size: 11px; font-weight: 700; }
+/* The label is the option's only child, so centring it lines the list items
+   up under the centred trigger value. */
+.dd-option-label { flex: 1 1 auto; min-width: 0; text-align: center; }
+.dd-disabled { opacity: 0.6; pointer-events: none; }
+
+/* =====================================================================
+   16. KEYFRAMES
+   ===================================================================== */
+@keyframes fl-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fl-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fl-sweep { from { left: -50%; } to { left: 100%; } }
+/* Progress-rail shimmer (original .rail-fill sweep). */
+@keyframes fl-shimmer { from { left: -40%; } to { left: 100%; } }
+@keyframes fl-spin { to { transform: rotate(360deg); } }
+@keyframes fl-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+@keyframes fl-halo { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+@keyframes fl-headline { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+@keyframes fl-mark-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(83, 216, 36, 0.22); }
+  50%      { box-shadow: 0 0 0 6px rgba(83, 216, 36, 0); }
+}
+@keyframes fl-ring {
+  0%   { transform: scale(0.7); opacity: 0.45; }
+  70%  { transform: scale(1.5); opacity: 0; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@keyframes fl-node-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(83, 216, 36, 0.1); }
+  50%      { box-shadow: 0 0 0 9px rgba(83, 216, 36, 0.03); }
+}
+@keyframes fl-draw { to { stroke-dashoffset: 0; } }
+@keyframes fl-draw-ring { to { stroke-dashoffset: 0; } }
+@keyframes fl-draw-glyph { to { stroke-dashoffset: 0; } }
+@keyframes fl-ripple-out {
+  0%   { transform: scale(0.9); opacity: 0.55; }
+  100% { transform: scale(1.7); opacity: 0; }
+}
+@keyframes fl-pop-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+/* A console line turning up into place, hinged on its bottom edge (the
+   transform-origin lives on .fl-log-line). perspective() must come FIRST in
+   the function list or the rotation renders flat and the whole effect
+   collapses into a vertical squash. */
+@keyframes fl-log-rotate-up {
+  0%   { opacity: 0; transform: perspective(340px) rotateX(-78deg) translateY(6px); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: perspective(340px) rotateX(0deg) translateY(0); }
+}
+@keyframes fl-row-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fl-dd-item { from { opacity: 0; transform: translateX(-5px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes fl-ellipsis {
+  0%        { clip-path: inset(0 100% 0 0); }
+  25%       { clip-path: inset(0 66% 0 0); }
+  50%       { clip-path: inset(0 33% 0 0); }
+  75%, 100% { clip-path: inset(0 0 0 0); }
+}
+
+/* ---------------------------------------------------------------------
+   DEVICE GRAPHIC KEYFRAMES  (section 14b)
+   Transform values are SVG user units, which for this viewBox means the
+   distances below are the real geometry: a packet travels 74 units, which
+   is exactly the ribbon from the probe to the board header, and the scan
+   head travels 56, which is the die height less its own 16.
+   --------------------------------------------------------------------- */
+
+/* probe readout: indeterminate pass, then the latch flash when it becomes
+   a real measurement */
+@keyframes fl-io-stripe {
+  0%   { clip-path: inset(0 100% 0 0 round 2.5px); }
+  55%  { clip-path: inset(0 0 0 62% round 2.5px); }
+  100% { clip-path: inset(0 0 0 100% round 2.5px); }
+}
+@keyframes fl-io-latch {
+  0%   { fill: rgba(83, 216, 36, 0.6); }
+  100% { fill: rgba(255, 255, 255, 0.07); }
+}
+/* Ends on .fl-dev-probe-face's resting fill - keep the two in step. */
+@keyframes fl-face-flash {
+  0%   { fill: rgba(83, 216, 36, 0.3); }
+  100% { fill: #131917; }
+}
+
+/* A lane's dot stream arriving. Opacity only - the travel is fl-trace-flow's
+   job, and two animations must never both claim stroke-dashoffset. */
+@keyframes fl-lane-arm {
+  0%   { opacity: 0; }
+  100% { opacity: 0.85; }
+}
+
+/* The dash travel, shared by the ribbon and the board traces so the two stay
+   in the same visual language. Both use the same 5.5 + 6.5 pattern, summing
+   to 12, so -24 is two whole periods for each and the loop is seamless. Any
+   travel that is not a whole multiple of the dash period visibly jumps on
+   each repeat, so change the two together or not at all. */
+@keyframes fl-trace-flow { to { stroke-dashoffset: -24; } }
+
+/* JTAG handshake on the header pins */
+@keyframes fl-pin-handshake {
+  0%, 100% { fill: rgba(238, 242, 238, 0.32); }
+  45%      { fill: #8ef25f; }
+}
+
+/* die: array power-up, ID read pass, erase wash, write head */
+@keyframes fl-array-in {
+  0%   { opacity: 0; }
+  35%  { opacity: 0.85; }
+  100% { opacity: 0.4; }
+}
+@keyframes fl-die-scan {
+  0%   { transform: translateY(0); opacity: 0; }
+  10%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(56px); opacity: 0; }
+}
+@keyframes fl-die-erase {
+  0%   { transform: translateY(-72px); opacity: 0; }
+  15%  { opacity: 0.85; }
+  70%  { opacity: 0.5; }
+  100% { transform: translateY(72px); opacity: 0; }
+}
+@keyframes fl-write-head {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* a written image latching into its sector of the map */
+@keyframes fl-sector-latch {
+  0%   { opacity: 0; filter: brightness(1); }
+  18%  { opacity: 1; filter: brightness(2.6); }
+  55%  { filter: brightness(1.5); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+
+/* completion: power-up sweep down the board, then the boot indicators */
+@keyframes fl-boot-sweep {
+  0%   { transform: translateY(0); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(216px); opacity: 0; }
+}
+@keyframes fl-boot-led {
+  0%   { opacity: 0.2; filter: brightness(1); }
+  40%  { opacity: 1; filter: brightness(2.2); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+@keyframes fl-mark-lift {
+  0%   { opacity: 0.5; filter: brightness(1); }
+  40%  { opacity: 1; filter: brightness(2); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+
+/* the ring that acknowledges every stage change */
+@keyframes fl-dev-ring {
+  0%   { transform: scale(0.55); opacity: 0; stroke-width: 2.5; }
+  22%  { opacity: 0.7; }
+  100% { transform: scale(1.55); opacity: 0; stroke-width: 0.8; }
+}
+
+/* readout under the board */
+@keyframes fl-op-in {
+  0%   { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes fl-seg-in {
+  0%   { transform: scaleY(0.4); opacity: 0.3; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+/* =====================================================================
+   17. RESPONSIVE
+   ---------------------------------------------------------------------
+   Very little is needed, because the base layout is proportional. These
+   only handle the points where a proportion stops being readable.
+   ===================================================================== */
+
+/* Narrower windows: give the form more room, shrink the graphic. */
+@media (max-width: 1280px) {
+  .fl-viz { max-width: 270px; }
+  /* No .fl-head-id override: it is offset with margin-RIGHT (it is right
+     aligned), and the 22.5% stays correct while the two columns are still
+     side by side. The rule that used to sit here set margin-left, which this
+     layout never reads. */
+  .fl-bin-row { grid-template-columns: 46px minmax(0, 1fr) minmax(88px, 100px) auto 34px; }
+}
+
+/* Short screens (1366x768 laptops, half-height windows): trim vertical
+   padding so the CTA never falls below the fold. */
+@media (max-height: 760px) {
+  .fl-head { padding: 12px 0; }
+  .fl-page { gap: 18px; }
+  .fl-card { gap: 16px; padding: 16px 18px; border-radius: 16px; }
+  .fl-prog { gap: 12px; padding: 18px 20px; border-radius: 16px; }
+  .fl-stack { gap: 14px; }
+  /* No .fl-drop override - it is pinned to the file card's 72px at every
+     size, and shrinking one without the other reintroduces the jump. */
+  /* No .fl-console override - the base clamp already floors at 120px here,
+     and the console grows into whatever .fl-prog's 85% leaves over. */
+
+  /* The board readout is the only fixed-height block in the left column, so
+     it is the one that has to give here. */
+  .fl-viz { gap: 8px; }
+  .fl-viz-readout { padding: 8px 10px; gap: 6px; }
+}
+
+/* Single column: the device graphic is decorative, the form is not.
+   ---------------------------------------------------------------------
+   TWO triggers, one layout. Narrow OR short both mean "there is not enough
+   room for a two-column, viewport-locked panel", and the answer is the same
+   either way, so this is one media query list rather than two blocks that
+   drift apart.
+
+   Height was the missing half. The base shell is `height: calc(100vh - 132px)`
+   with `overflow: hidden`, so on a short window - a half-height desktop
+   window, a netbook, a phone in landscape - the whole UI was squeezed into
+   space it does not fit and then clipped, because the graphic column and the
+   form were still sharing that height side by side. Nothing about it got
+   smaller; it just lost its bottom edge.
+
+   Below, the shell stops being locked to the viewport and grows with its
+   content, so the page scrolls instead of clipping. */
+@media (max-width: 940px), (max-height: 640px) {
+  .fl {
+    height: auto;
+    min-height: calc(100vh - 132px);
+    overflow: visible;
+  }
+  .fl-main { flex-direction: column; }
+  .fl-viz { display: none; }
+
+  /* Single column, so there is no left-hand graphic to sit clear of and no
+     work column to align over: the 22.5% right offset that put the title
+     above that column now just pushes it off to the right of a page whose
+     content is centred. Centre the header instead - the header and .fl-main
+     are the same box, so this lines the title up with the card below it.
+     margin-right is the one that has to be zeroed; the base rule sets no
+     margin-left. */
+  .fl-head { justify-content: center; }
+  .fl-head-id {
+    justify-content: center;
+    margin-right: 0;
+  }
+  /* The min-height is NOT decoration and must never go away: .fl-screen and
+     .fl-page are absolutely positioned, so this column has no content height
+     of its own. With the shell unlocked from the viewport above, a column
+     without a floor here collapses to nothing and the whole UI disappears.
+     520px is the tallest configuration screen plus its CTA. */
+  .fl-work {
+    flex: 1 1 auto;
+    border-left: none;
+    min-height: 520px;
+  }
+  .fl-screen { padding-left: 0; padding-right: 0; }
+}
+
+@media (max-width: 600px) {
+  .fl-head { padding: 12px 0; }
+  /* No font-size override: 19px here was the other half of the shrinking
+     title. It keeps the 26px floor from the base rule. `normal` is only a
+     safety valve for a very narrow phone - at 26px the two words fit on one
+     line well below 600px, so it wraps rather than clipping if they ever
+     do not. */
+  .fl-title { white-space: normal; text-align: center; }
+
+  .fl-card,
+  .fl-prog { padding: 16px 14px; border-radius: 16px; }
+  /* Stacked track. Same mechanism, one axis over: the thumb's width and
+     height swap and --i drives Y instead of X. */
+  .fl-seg { grid-template-columns: minmax(0, 1fr); }
+  .fl-seg-thumb {
+    width: calc(100% - 2 * var(--fl-seg-pad));
+    height: calc((100% - 2 * var(--fl-seg-pad)) / var(--n));
+    transform: translateY(calc(var(--i) * 100%));
+  }
+  .fl-grid2 { flex-direction: column; }
+
+  .fl-cta { flex-direction: column; align-items: stretch; }
+  .fl-btn-primary,
+  .fl-btn-danger { width: 100%; min-width: 0; }
+
+  .fl-bin-row {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.042);
+  }
+  .fl-bin-tag { grid-column: 1 / -1; height: 18px; }
+  .fl-bin-name, .fl-addr-wrap { grid-column: 1 / -1; }
+  .fl-bin-browse { grid-column: 1 / 2; }
+  .fl-bin-remove, .fl-bin-spacer { grid-column: 2 / 3; justify-self: end; }
+  .fl-bin-list.is-scroll { max-height: 320px; }
+
+  .fl-add-row { flex-direction: column; align-items: stretch; }
+  .fl-limit-text { text-align: center; }
+  .fl-step-name { font-size: 9.5px; }
+  .fl-prog-top { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
+
+/* Short screens, past the point where trimming padding is enough (the
+   max-height: 760px block above). The layout is already single-column and
+   page-scrolling by here; this only buys vertical space back so the card
+   needs less scrolling of its own.
+
+   LAST in the section on purpose. A landscape phone is narrow AND short, so
+   both this and the max-width blocks match - and where the two set the same
+   property, height is the axis that is actually scarce, so it has to be the
+   one that wins. Equal specificity, so source order is the whole mechanism.
+   Anything added below this block must not touch these properties. */
+@media (max-height: 640px) {
+  .fl-head { padding: 10px 0; }
+  .fl-page { gap: 14px; }
+  .fl-card { gap: 12px; padding: 14px 16px; }
+  .fl-prog { gap: 10px; padding: 14px 16px; }
+  .fl-stack { gap: 12px; }
+
+  /* Both of these are floors that the base clamps cannot get under: the
+     console's is 120px and the bin list's is 170px, which is most of a
+     500px-tall window between them. They are also the two blocks that scroll
+     internally, so they are the right things to shrink - nothing is lost,
+     it just scrolls a little sooner. */
+  .fl-console { min-height: 96px; }
+  .fl-bin-list.is-scroll { max-height: 150px; }
+}
+
+/* =====================================================================
+   18. REDUCED MOTION
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .fl *,
+  .fl *::before,
+  .fl *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .fl-result-ring,
+  .fl-result-glyph { stroke-dashoffset: 0 !important; }
+  .fl-bar-fill::after,
+  .fl-result-ripple,
+  .fl-readout.is-detecting::after { display: none; }
+
+  /* Device graphic: the one-shot passes are pure motion, so with animation
+     collapsed they would only ever show as a stuck frame. Drop them and let
+     the state layers (fill, sectors, LEDs, array) carry the meaning - those
+     are colour and geometry, which survive fine without movement. */
+  .fl-dev-pkts,
+  .fl-dev-trace-fx,
+  .fl-dev-scan,
+  .fl-dev-erase,
+  .fl-dev-fx,
+  .fl-dev-bootsweep,
+  .fl-dev-io-stripe { display: none; }
+}

@@ -1,0 +1,138 @@
+.folder-structure-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.folder-toolbar {
+  display: flex;
+  gap: 2px;
+
+  justify-content: flex-end;
+}
+
+.toolbar-btn {
+  display: flex;
+  background: none;
+  border: none;
+  color: #ECECEC;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 5px;
+  transition: background 0.3s;
+}
+
+.toolbar-btn:hover {
+  background-color: #444;
+  color: #fff;
+}
+
+.folder-header {
+  display: flex;
+  margin-bottom: 5px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 5px;
+  border-bottom: 1px solid #333;
+}
+
+.folder-title {
+  text-wrap: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 18px;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-weight: 600;
+  color: #ECECEC;
+  letter-spacing: 0.5px;
+}
+
+
+
+.folder-structure {
+  scrollbar-width: none;
+  --webkit-scrollbar: none;
+  font-size: 14px;
+  color: #ECECEC;
+  height: 100%;
+  overflow-y: auto;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+
+}
+
+.folder-item {
+  position: relative;
+  margin-left: 8px;
+  margin-top: 4px;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.item-header:hover {
+  background-color: #444;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+}
+
+.chevron {
+  height: 22px;
+  width: 12px;
+  color: #999;
+}
+
+.folder-icon {
+  color: #facc15;
+}
+
+.file-icon {
+  color: #999;
+}
+
+.icon-spacer {
+  width: 16px;
+  height: 16px;
+}
+
+.item-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.children {
+  margin-left: 11px;
+  border-left: 1px solid #444;
+
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 999;
+  background: #222;
+  border: 1px solid #444;
+  padding: 6px 0;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.context-menu div {
+  padding: 6px 12px;
+  color: #ECECEC;
+  cursor: pointer;
+}
+
+.context-menu div:hover {
+  background-color: #444;
+  color: #ECECEC;
+}

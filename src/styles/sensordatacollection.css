@@ -1,0 +1,317 @@
+.right-part-sc{
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+}
+.live-graph {
+  margin-left: 80px;
+  padding: 75px 20px 20px 20px;
+  position: relative;
+  width: 100%;
+  height: 80%;
+  border: 2px solid #53d824;
+  border-radius: 10px;
+  background-color: #151515;
+}
+
+.container-sensor {
+  overflow-y: auto;
+  display: grid;
+  scrollbar-color: #53d824 #151515;
+  scrollbar-width: thin;
+  grid-template-columns: 1fr 1fr;
+  height: calc(100vh - 130px);
+  background-color: #151515;
+}
+
+.Sensor-tiltle h1 {
+  display: flex;
+  margin-bottom: 30px;
+  width: auto;
+  justify-content: center;
+  color: #ECECEC;
+  font-size: 24px;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+}
+
+
+.left-part-animation-sensor {
+  position: sticky;
+  top: 0;
+  height: calc(100vh - 190px);
+  padding: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.custom-toast {
+  font-family: "Gilroy-Light", var(--es-fallback);
+}
+
+.three-js-visualizer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  border-radius: 5px;
+}
+
+.real-time-graph {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.sample-rate-duration {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+  width: 100%;
+}
+
+.select-wrapper-sensor {
+  display: flex;
+  position: relative;
+  width: 100%;
+}
+
+.select-wrapper-sensor::before {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 80%;
+  background: #2c2c2c;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.select-wrapper-sensor::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 51%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid #53d824;
+  pointer-events: none;
+}
+
+
+.input-box-sensor {
+  flex: 1;
+  padding-inline: 0;
+  text-align: center;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 16px;
+  background-color: #151515 !important;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 10px;
+  color: #ECECEC !important;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+.input-box-sensor-one{
+  padding-inline: 0;
+  text-align: center;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 16px;
+  background-color: #151515 !important;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 10px;
+  color: #ECECEC !important;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+.input-box-sensor-two{
+  padding-inline: 0;
+  text-align: center;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 16px;
+  background-color: #151515 !important;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 4px;
+  color: #ECECEC !important;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+
+
+
+.input-form-sensor {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+}
+
+.upload-line-sc {
+  background-color: #53d824;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 5px;
+  margin-bottom: 15px;
+  width: 102%;
+}
+
+.graph-toggle-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 35px;
+  height: 35px;
+  background-color: #53d824;
+  border: 2px solid #151515;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  z-index: 10;
+  cursor: pointer;
+  box-shadow: 0px 5px 5px rgba(0, 0, 0, 0.3);
+}
+
+.graph-icon {
+  width: 35px;
+  height: 35px;
+  object-fit: contain;
+}
+
+
+
+/* Countdown message styling */
+.countdown-message {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 10px;
+  color: white;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  z-index: 10;
+  text-align: center;
+}
+
+.countdown-message h1 {
+  font-size: 6rem;
+  margin: 0;
+}
+
+.countdown-message h2 {
+  font-size: 2rem;
+  margin: 0 0 10px 0;
+}
+
+.countdown-message p {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+
+.sensor-text-container {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+/* Main tooltip styling */
+.sensor-tooltip-wrapper {
+  display: flex;
+  position: relative;
+  align-items: center;
+  width: 100%;
+}
+
+/* The actual tooltip */
+.sensor-tooltip {
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 14px;
+  visibility: hidden;
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: auto;
+  right: 110%; /* Position to the left */
+  transform: translateY(-50%);
+  min-width: 200px;
+  background-color: #202020;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  opacity: 0;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+/* Adjust arrow for left tooltip */
+.sensor-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent #202020;
+}
+
+/* Show the tooltip when hovering over the wrapper */
+.sensor-tooltip-wrapper:hover .sensor-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Custom styling for different tooltip states */
+.sensor-tooltip.info {
+  background-color: #1a1a1a;
+}
+
+.sensor-tooltip.info::after {
+  top: 50%;
+  left: 102%;
+  margin-left: 0;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent #53d824;
+}
+

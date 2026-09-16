@@ -1,0 +1,1725 @@
+/* =====================================================================
+   PRE-PROCESSING PIPELINE STUDIO  Â·  Ambient Scientific Â· GPX   (v3.1)
+   Theme: #52d824 / #6dff3a green on #1e1e1e.
+ 
+   v3.1 review fixes (layout / copy only â€” codegen untouched)
+     Â· Diagram node + IO labels enlarged (were unreadable at scaled SVG).
+     Â· Hero title vertically centred within the hero band.
+   ===================================================================== */
+ 
+.pp {
+  position: relative;
+  /* height: calc(100dvh - 145px);  */
+  /* for exe height is above and for local height is below  */
+  height: calc(100dvh - 130px); 
+  background: #1e1e1e;
+  color: #ececec;
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  line-height: 1.5;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+  
+.pp *,
+.pp *::before,
+.pp *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+ 
+.pp a {
+  color: inherit;
+}
+ 
+/* thin, theme-coloured scrollbars wherever a panel genuinely scrolls */
+.pp ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+ 
+.pp ::-webkit-scrollbar-track {
+  background: transparent;
+}
+  
+.pp ::-webkit-scrollbar-thumb {
+  background: rgba(82, 216, 36, 0.28);
+  border-radius: 999px;
+}
+  
+.pp ::-webkit-scrollbar-thumb:hover {
+  background: rgba(82, 216, 36, 0.5);
+}
+ 
+.pp-config-body,
+.pp-code {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(81, 216, 36, 0.7) transparent;
+}
+ 
+.pp-main {
+  width: 88%;
+  height: 98%;
+  margin: auto;
+  padding: clamp(8px, 1.2vh, 20px) clamp(14px, 2.8vw, 40px);
+  display: flex;
+  flex-direction: column;
+}
+ 
+/* ---------------------------------------------------------------------
+   STAGE + SCREENS  (vertical slide: config slides up, code slides in)
+   --------------------------------------------------------------------- */
+.pp-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+ 
+.pp-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  transition: transform 0.6s cubic-bezier(0.77, 0, 0.175, 1), opacity 0.45s ease;
+}
+ 
+.pp-config {
+  transform: translateY(0);
+  opacity: 1;
+  overflow: hidden;
+}
+ 
+.pp-codescreen {
+  transform: translateY(100%);
+  opacity: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+ 
+.pp-stage.go-code .pp-config {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+ 
+.pp-stage.go-code .pp-codescreen {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+ 
+/* config = scrollable body (safety) + pinned footer button */
+.pp-config-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-right: 2px;
+}
+ 
+/* ---------------------------------------------------------------------
+   HERO
+   --------------------------------------------------------------------- */
+.pp-hero {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin-bottom: clamp(6px, 1.1vh, 14px);
+}
+ 
+.pp-title {
+  font-size: clamp(20px, 2.6vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  padding-bottom: 10px;
+  border-bottom: 3px solid #54d8249c;
+  margin-bottom: 10px;
+  margin-top: 12px;
+ 
+  width: 25%;
+}
+ 
+.pp-config.is-full .pp-title {
+  border-bottom: none;
+  font-size: 30px !important;
+  margin-top: 10px;
+}
+ 
+/* ---------------------------------------------------------------------
+   SECTION HEADINGS
+   --------------------------------------------------------------------- */
+.pp-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0 0 clamp(6px, 1vh, 11px);
+}
+ 
+.pp-head h2 {
+  font-size: clamp(12.5px, 1.05vw, 20px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.62em;
+}
+ 
+.pp-eyebrow {
+  font-size: clamp(9px, 0.72vw, 14px);
+  color: #6dff3a;
+  background: rgba(82, 216, 36, 0.1);
+  border: 1px solid rgba(82, 216, 36, 0.25);
+  padding: 0.27em 0.82em;
+  border-radius: 0.64em;
+}
+ 
+/* ---------------------------------------------------------------------
+   LAYOUT GRID  â€”  flow diagram (left) + variant picker (right)
+   --------------------------------------------------------------------- */
+.pp-grid {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(clamp(230px, 22vw, 360px), 0.9fr);
+  gap: clamp(12px, 1.5vw, 24px);
+  align-items: stretch;
+}
+  
+.pp-left,
+.pp-right {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+ 
+/* Path 04 â€” the grid grows into the free space above the Generate bar AND
+   shrinks when the viewport is short (high zoom), so the page never scrolls.
+   The overlap hazard of shrinking is solved at the source:
+   grid-template-rows: minmax(0, 1fr) lets the single row compress below its
+   content, and the columns' inner flex (min-height:0 + shrinkable presets)
+   absorbs the squeeze instead of spilling over the capture card. */
+.pp-config.is-full .pp-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+ 
+/* ---------------------------------------------------------------------
+   FLOW DIAGRAM  (compact, scales to fit â€” never scrolls sideways)
+   --------------------------------------------------------------------- */
+.pp-diagram {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #171717;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: clamp(12px, 1.25vw, 20px);
+  padding: clamp(8px, 1.2vh, 14px) clamp(8px, 1vw, 14px);
+  overflow: hidden;
+}
+ 
+.pp-svg-scroll {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+}
+ 
+.pp-flow {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  display: block;
+}
+ 
+/* wires */
+.pp-wire {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.45s, opacity 0.45s;
+}
+ 
+.pp-wire.on {
+  stroke: #52d824;
+  stroke-dasharray: 9 7;
+  animation: ppFlow 0.55s linear infinite;
+}
+ 
+.pp-wire.dim {
+  opacity: 0.32;
+}
+ 
+.pp-wire.on.bypass {
+  stroke-dasharray: 7 6;
+  animation: ppFlow 1s linear infinite;
+  filter: drop-shadow(0 0 4px rgba(82, 216, 36, 0.55));
+}
+ 
+/* nodes */
+.pp-node .pp-box {
+  fill: rgba(20, 26, 22, 0.72);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1.8;
+  transition: fill 0.45s, stroke 0.45s, filter 0.45s;
+  height: 60px;
+}
+.pp-node-lbl,
+.pp-node-sub {
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+ 
+.pp-slot {
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1.3;
+  transition: stroke 0.45s;
+}
+ 
+.pp-node-lbl {
+  fill: rgba(236, 236, 236, 0.6);
+  font-weight: 550;
+  font-size: 18px;
+  transition: fill 0.45s;
+}
+  
+.pp-node-sub {
+  fill: rgba(236, 236, 236, 0.38);
+  font-size: 16px;
+  letter-spacing: 0.4px;
+  transition: fill 0.45s;
+    transform: translateY(5px);   /* pushes sub-label down, widening the gap */
+  transform-box: fill-box;       /* so the translate is relative to the element */
+}
+ 
+.pp-node.on .pp-box {
+  fill: rgba(82, 216, 36, 0.1);
+  stroke: #52d824;
+}
+ 
+.pp-node.on .pp-slot {
+  stroke: rgba(109, 255, 58, 0.7);
+}
+ 
+.pp-node.on .pp-node-lbl {
+  fill: #ececec;
+}
+ 
+.pp-node.on .pp-node-sub {
+  fill: #6dff3a;
+}
+  
+.pp-node.off {
+  opacity: 0.34;
+}
+ 
+.pp-node.mand .pp-box {
+  stroke: #52d824;
+}
+ 
+.pp-node-pulse .pp-box {
+  animation: ppNodePulse 2.6s infinite;
+}
+ 
+.pp-io {
+  fill: rgba(236, 236, 236, 0.42);
+  font-size: 13px;
+}
+ 
+.pp-io.hot {
+  fill: #6dff3a;
+  font-weight: 700;
+}
+ 
+/* route chips */
+.pp-chips {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(5px, 0.5vw, 9px);
+  justify-content: center;
+  margin-top: clamp(6px, 1vh, 12px);
+  padding: 0 clamp(6px, 1vw, 14px);
+}
+ 
+.pp-chip {
+  font-size: clamp(9px, 0.72vw, 14px);
+  padding: 0.34em 0.95em;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(236, 236, 236, 0.38);
+  transition: all 0.4s;
+}
+ 
+.pp-chip.on {
+  color: #06210a;
+  background: linear-gradient(135deg, #6dff3a, #2f9c12);
+  border-color: transparent;
+  font-weight: 700;
+}
+ 
+.pp-chip.skip {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+ 
+.pp-arrow {
+  color: rgba(236, 236, 236, 0.38);
+  font-size: clamp(10px, 0.85vw, 17px);
+}
+ 
+/* ---------------------------------------------------------------------
+   PRESETS  (variant picker)
+   --------------------------------------------------------------------- */
+.pp-presets {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(8px, 1.1vh, 14px);
+}
+ 
+.pp-preset {
+  flex: 1 1 auto;
+  max-height: clamp(90px, 14vh, 140px);
+  position: relative;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #1b1b1b;
+  border-radius: clamp(10px, 0.9vw, 16px);
+  padding: clamp(10px, 1.5vh, 20px) clamp(11px, 1vw, 20px);
+  overflow: hidden;
+  font-family: inherit;
+  color: #ececec;
+  transition: all 0.3s;
+}
+ 
+.pp-preset:hover {
+  transform: translateY(-2px);
+  border-color: rgba(82, 216, 36, 0.4);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+}
+ 
+.pp-preset:focus-visible {
+  outline: 2px solid #52d824;
+  outline-offset: 2px;
+}
+ 
+.pp-preset.is-active {
+  border-color: #52d824;
+  background: rgba(82, 216, 36, 0.08);
+}
+ 
+.pp-pno {
+  font-size: clamp(9px, 0.72vw, 14px);
+  color: rgba(236, 236, 236, 0.38);
+}
+ 
+.pp-pname {
+  font-weight: 700;
+  font-size: clamp(11.5px, 0.95vw, 18px);
+  margin: 0.25em 0 0.3em;
+}
+ 
+.pp-pdesc {
+  font-size: clamp(9.5px, 0.78vw, 15px);
+  color: rgba(236, 236, 236, 0.6);
+  line-height: 1.4;
+}
+ 
+.pp-preset.is-active .pp-pname {
+  color: #6dff3a;
+}
+ 
+/* hero (Path 04) card */
+.pp-preset.is-full.is-active {
+  border-color: #6dff3a;
+  background: linear-gradient(135deg, rgba(82, 216, 36, 0.14), rgba(82, 216, 36, 0.05));
+  box-shadow: 0 0 0 1px rgba(109, 255, 58, 0.25), 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+ 
+.pp-preset.is-full .pp-pname {
+  display: flex;
+  align-items: center;
+}
+ 
+.pp-pname .pp-tag {
+  margin-left: 0.6em;
+  font-size: 0.5em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #06210a;
+  background: linear-gradient(135deg, #6dff3a, #2f9c12);
+  padding: 0.28em 0.72em;
+  border-radius: 999px;
+}
+ 
+/* Path 04 active â€” collapse alternates into slim rows.
+   Rows are 0 1 auto / min-height:0 so the whole stack can compress when the
+   viewport is short (125 % zoom) instead of forcing a scrollbar. */
+.pp-presets-full {
+  flex: 1 1 auto;
+  min-height: 0;
+  justify-content: center;
+  gap: clamp(8px, 1.1vh, 14px);
+}
+ 
+.pp-presets-full .pp-preset:not(.is-full) {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: clamp(40px, 5.4vh, 50px);
+  padding: clamp(7px, 0.9vh, 11px) clamp(11px, 1vw, 20px);
+  opacity: 0.66;
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+}
+ 
+.pp-presets-full .pp-preset:not(.is-full):hover,
+.pp-presets-full .pp-preset:not(.is-full).is-active {
+  opacity: 1;
+}
+ 
+.pp-presets-full .pp-preset:not(.is-full) .pp-pdesc {
+  display: none;
+}
+ 
+.pp-presets-full .pp-preset:not(.is-full) .pp-pno {
+  margin: 0;
+  flex: 0 0 auto;
+}
+ 
+.pp-presets-full .pp-preset:not(.is-full) .pp-pname {
+  margin: 0;
+  font-size: clamp(11px, 0.85vw, 15px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ 
+.pp-presets-full .pp-preset.is-full {
+  flex: 0 1 auto;
+  /* size to content â€” never balloon, but may compress when short */
+  min-height: 0;
+  max-height: none;
+  margin-top: clamp(2px, 0.5vh, 5px);
+  padding: clamp(12px, 1.5vh, 20px) clamp(11px, 1vw, 20px);
+}
+ 
+/* =====================================================================
+   PATH-04 CAPTURE CARD  (v3 â€” ONE compact horizontal band)
+   Grid:  [ slider zone ]  |  [ Features + Output ]  |  [ scope ]
+   ===================================================================== */
+.pp-capbar {
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: clamp(8px, 1.1vh, 14px);
+  padding: clamp(11px, 1.2vw, 18px);
+  border: 1px solid rgba(82, 216, 36, 0.28);
+  border-radius: clamp(12px, 1vw, 18px);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(10, 35, 2, 0.07), transparent 55%),
+    #171717;
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(clamp(230px, 25vw, 380px), 1fr);
+  align-items: stretch;
+  gap: clamp(16px, 2vw, 30px);
+  animation: ppOptsIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+ 
+/* Slide DOWN from above (-10px): a downward offset would extend the
+   scrollable area past the body's bottom edge and flash a scrollbar
+   during the entrance; upward overflow is never scrollable. */
+@keyframes ppOptsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+ 
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+ 
+/* shared small labels / hints */
+.pp-opt-label {
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+ 
+.pp-opt-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.42);
+}
+ 
+.pp-opt-hint code {
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 11px;
+  color: #6dff3a;
+  background: rgba(82, 216, 36, 0.1);
+  padding: 1px 5px;
+  border-radius: 5px;
+}
+ 
+/* ---- COLUMN 1 â€” capture length + slider ---- */
+.pp-cap-slider {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(7px, 0.9vh, 11px);
+  min-width: 0;
+}
+ 
+.pp-cap-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+}
+ 
+.pp-cap-readout {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+ 
+.pp-cap-sec {
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-weight: 600;
+  font-size: clamp(22px, 2.5vw, 32px);
+  line-height: 0.9;
+  color: #6dff3a;
+}
+ 
+.pp-cap-sec i {
+  font-style: normal;
+  font-size: 0.42em;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.55);
+  margin-left: 3px;
+}
+ 
+.pp-cap-secsub {
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.46);
+  white-space: nowrap;
+}
+ 
+.pp-cap-presets {
+  display: inline-flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+ 
+.pp-cap-preset {
+  appearance: none;
+  cursor: pointer;
+  padding: 4px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #131313;
+  color: rgba(255, 255, 255, 0.66);
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.16s;
+}
+ 
+.pp-cap-preset:hover {
+  border-color: rgba(82, 216, 36, 0.5);
+  color: #fff;
+}
+ 
+.pp-cap-preset.on {
+  background: linear-gradient(180deg, #6dff3a, #52d824);
+  border-color: transparent;
+  color: #0c1a05;
+}
+ 
+.pp-cap-preset:focus-visible {
+  outline: 2px solid #52d824;
+  outline-offset: 2px;
+}
+ 
+.pp-cap-sliderwrap {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 10px;
+}
+ 
+.pp-cap-nudge {
+  appearance: none;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #151515;
+  color: #6dff3a;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  transition: all 0.16s;
+}
+ 
+.pp-cap-nudge:hover:not(:disabled) {
+  border-color: #52d824;
+  background: rgba(82, 216, 36, 0.14);
+  transform: translateY(-1px);
+}
+ 
+.pp-cap-nudge:active:not(:disabled) {
+  transform: translateY(0);
+}
+ 
+.pp-cap-nudge:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+ 
+.pp-cap-nudge:focus-visible {
+  outline: 2px solid #52d824;
+  outline-offset: 2px;
+}
+ 
+.pp-cap-track {
+  position: relative;
+  height: 32px;
+  cursor: pointer;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+}
+ 
+.pp-cap-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 8px;
+  border-radius: 999px;
+  background: #0e0e0e;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+ 
+.pp-cap-tickrow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+ 
+.pp-cap-tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 6px;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.16);
+}
+ 
+.pp-cap-tick.major {
+  height: 11px;
+  background: rgba(255, 255, 255, 0.28);
+}
+ 
+.pp-cap-tick.on {
+  background: rgba(12, 26, 5, 0.55);
+}
+ 
+.pp-cap-tick.on.major {
+  background: rgba(12, 26, 5, 0.8);
+}
+ 
+.pp-cap-fill {
+  position: absolute;
+  left: 0;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #52d824, #6dff3a);
+  pointer-events: none;
+}
+ 
+.pp-cap-thumb {
+  position: absolute;
+  top: 50%;
+  width: 19px;
+  height: 19px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #6dff3a;
+  border: 3px solid #0f0f0f;
+  box-shadow: 0 0 0 2px rgba(82, 216, 36, 0.55), 0 2px 8px rgba(0, 0, 0, 0.6);
+  cursor: grab;
+  outline: none;
+  animation: ppCapThumb 2.4s ease-in-out infinite;
+}
+ 
+.pp-cap-track.dragging .pp-cap-thumb {
+  cursor: grabbing;
+  animation: none;
+}
+ 
+.pp-cap-thumb:focus-visible {
+  box-shadow: 0 0 0 3px rgba(109, 255, 58, 0.85), 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+ 
+@keyframes ppCapThumb {
+ 
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(82, 216, 36, 0.55), 0 2px 8px rgba(0, 0, 0, 0.6);
+  }
+ 
+  50% {
+    box-shadow: 0 0 0 5px rgba(82, 216, 36, 0.18), 0 2px 8px rgba(0, 0, 0, 0.6);
+  }
+}
+ 
+.pp-cap-tip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 3px 9px;
+  border-radius: 7px;
+  background: #6dff3a;
+  color: #0c1a05;
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+ 
+.pp-cap-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #6dff3a;
+}
+
+/* .below â€” set by FrameSlider only while the pill would overlap the
+   1 sâ€“5 s preset buttons. Anywhere else along the track it stays above. */
+.pp-cap-tip.below {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
+.pp-cap-tip.below::after {
+  top: auto;
+  bottom: 100%;
+  border-top-color: transparent;
+  border-bottom-color: #6dff3a;
+}
+ 
+/* fixed 1s..5s axis (display only, non-clickable) */
+.pp-cap-axis {
+  position: relative;
+  height: 13px;
+  margin: 0 32px;
+}
+ 
+.pp-cap-axis span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+}
+ 
+.pp-cap-axis span:last-child {
+  transform: translateX(-100%);
+}
+ 
+/* ---- COLUMN 2 â€” right panel (Features + Output row, scope below) ---- */
+.pp-cap-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(10px, 1.4vh, 16px);
+  padding-left: clamp(16px, 2vw, 30px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 0;
+}
+ 
+/* Features + Output map sit SIDE BY SIDE */
+.pp-cap-controls {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: clamp(18px, 2.4vw, 34px);
+}
+ 
+.pp-opt {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+ 
+.pp-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 4px;
+  background: #101010;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  width: max-content;
+}
+ 
+.pp-seg-btn {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  min-width: 52px;
+  padding: 6px 15px;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+}
+ 
+.pp-seg-btn:hover {
+  color: #fff;
+}
+ 
+.pp-seg-btn.on {
+  background: linear-gradient(180deg, #6dff3a, #52d824);
+  color: #0c1a05;
+}
+ 
+.pp-seg-btn:focus-visible {
+  outline: 2px solid #52d824;
+  outline-offset: 2px;
+}
+ 
+.pp-cap-outbox {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  width: max-content;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: #101010;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+ 
+.pp-cap-outbox b {
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: 17px;
+  font-weight: 800;
+  color: #6dff3a;
+  letter-spacing: 0.02em;
+}
+ 
+.pp-cap-outbox small {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+ 
+/* ---- Frame-tiling scope â€” sits BELOW the Features/Output row ---- */
+.pp-cap-vizcol {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+ 
+.pp-cap-scope {
+  width: 100%;
+  height: clamp(38px, 3.2vw, 52px);
+  border-radius: 11px;
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+ 
+.pp-cap-wave {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+ 
+.pp-cap-cell {
+  fill: rgba(82, 216, 36, 0.05);
+}
+ 
+.pp-cap-base {
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+ 
+.pp-cap-trace {
+  fill: none;
+  stroke: #6dff3a;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px rgba(82, 216, 36, 0.55));
+}
+ 
+.pp-cap-div {
+  stroke: rgba(82, 216, 36, 0.5);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  vector-effect: non-scaling-stroke;
+  animation: ppCapDiv 0.5s ease-out both;
+}
+ 
+@keyframes ppCapDiv {
+  from {
+    opacity: 0;
+  }
+ 
+  to {
+    opacity: 1;
+  }
+}
+ 
+/* ---------------------------------------------------------------------
+   GENERATE BAR  â€”  pinned footer (always visible below the body)
+   --------------------------------------------------------------------- */
+.pp-genbar {
+  flex: 0 0 auto;
+  margin-top: clamp(8px, 1.1vh, 14px);
+  padding-top: clamp(8px, 1.1vh, 14px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(6px, 1vh, 12px);
+}
+ 
+.pp-pathline {
+  font-size: clamp(11px, 0.88vw, 17px);
+  color: rgba(236, 236, 236, 0.6);
+  text-align: center;
+}
+ 
+.pp-path {
+  color: #6dff3a;
+  font-weight: 700;
+}
+ 
+.pp-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65em;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: clamp(12.5px, 1vw, 19px);
+  padding: 0.78em 1.7em;
+  border-radius: 0.73em;
+  transition: all 0.3s;
+}
+ 
+.pp-btn:focus-visible {
+  outline: 2px solid #06210a;
+  outline-offset: 2px;
+}
+ 
+.pp-btn-primary {
+  color: #06210a;
+  background: linear-gradient(135deg, #6dff3a, #2f9c12);
+}
+ 
+.pp-btn-primary:hover {
+  transform: translateY(-2px);
+}
+ 
+/* ---------------------------------------------------------------------
+   CODE SCREEN
+   --------------------------------------------------------------------- */
+.pp-code-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+ 
+.pp-code-shell {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: #0c0c0c;
+}
+ 
+.pp-code-top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(8px, 0.7vw, 14px);
+  flex-wrap: wrap;
+  padding: clamp(9px, 0.83vw, 15px) clamp(12px, 1.11vw, 20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(82, 216, 36, 0.05), transparent);
+}
+ 
+.pp-code-left {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+ 
+.pp-dots {
+  display: flex;
+  gap: clamp(5px, 0.49vw, 9px);
+}
+ 
+.pp-dots i {
+  width: clamp(8px, 0.76vw, 14px);
+  height: clamp(8px, 0.76vw, 14px);
+  border-radius: 50%;
+  display: block;
+}
+ 
+.pp-dots i:nth-child(1) {
+  background: #ff5f57;
+}
+ 
+.pp-dots i:nth-child(2) {
+  background: #febc2e;
+}
+ 
+.pp-dots i:nth-child(3) {
+  background: #28c840;
+}
+ 
+.pp-code-file {
+  font-family: inherit;
+  font-size: clamp(10.5px, 0.87vw, 17px);
+  color: rgba(236, 236, 236, 0.6);
+  margin-left: 0.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+ 
+.pp-code-actions {
+  display: flex;
+  gap: clamp(6px, 0.56vw, 10px);
+  flex-wrap: wrap;
+}
+ 
+.pp-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  border: 1px solid rgba(52, 195, 20, 0.7);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(236, 236, 236, 0.9);
+  font-family: inherit;
+  font-size: clamp(10.5px, 0.87vw, 17px);
+  font-weight: 600;
+  padding: 0.5em 0.9em;
+  border-radius: 0.72em;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+ 
+.pp-mini:hover {
+  color: #52d824;
+  border-color: rgba(82, 216, 36, 0.4);
+  background: rgba(82, 216, 36, 0.08);
+}
+ 
+.pp-mini:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+ 
+.pp-mini:disabled:hover {
+  color: rgba(236, 236, 236, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+ 
+.pp-miniback {
+  color: #52d824;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  border: 1px solid #52d824;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: inherit;
+  font-size: clamp(10.5px, 0.87vw, 17px);
+  font-weight: 600;
+  padding: 0.56em 0.96em;
+  border-radius: 0.72em;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+ 
+.pp-mini:focus-visible,
+.pp-miniback:focus-visible {
+  outline: 2px solid #52d824;
+  outline-offset: 2px;
+}
+ 
+.pp-gen-tag {
+  margin-left: 1em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  font-family: "Gilroy-Medium", "Segoe UI", var(--es-fallback);
+  font-size: clamp(9.5px, 0.76vw, 15px);
+  letter-spacing: 0.03em;
+  color: #6dff3a;
+  white-space: nowrap;
+}
+ 
+.pp-gen-tag::before {
+  content: "";
+  width: 0.64em;
+  height: 0.64em;
+  border-radius: 50%;
+  background: #6dff3a;
+  box-shadow: 0 0 8px rgba(82, 216, 36, 0.85);
+  animation: ppGenDot 0.9s ease-in-out infinite;
+}
+ 
+.pp-code-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 42px;
+  background: linear-gradient(180deg, rgba(82, 216, 36, 0.18), transparent);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 2;
+}
+ 
+.pp-code-shell.scanning .pp-code-scan {
+  opacity: 1;
+  animation: ppScan 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+ 
+.pp-code {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 1.55em 1.7em;
+  overflow: auto;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(11px, 0.9vw, 17px);
+  line-height: 1.7;
+  color: #d7e0d4;
+  tab-size: 4;
+  white-space: pre;
+}
+ 
+.pp-ln {
+  display: inline-block;
+  width: 2.3em;
+  color: #3c463c;
+  user-select: none;
+  text-align: right;
+  margin-right: 1.4em;
+}
+ 
+.pp-kw {
+  color: #6dff3a;
+}
+ 
+.pp-def {
+  color: #7fe0ff;
+}
+ 
+.pp-str {
+  color: #ffd98a;
+}
+ 
+.pp-num {
+  color: #ff9e6d;
+}
+ 
+.pp-com {
+  color: #5b6b58;
+  font-style: italic;
+}
+ 
+.pp-bi {
+  color: #b9a6ff;
+}
+ 
+.pp-code-caret {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: #6dff3a;
+  box-shadow: 0 0 8px rgba(82, 216, 36, 0.8);
+  animation: ppCaret 1.05s steps(1) infinite;
+}
+ 
+/* ---------------------------------------------------------------------
+   TOAST
+   --------------------------------------------------------------------- */
+.pp-toast {
+  position: fixed;
+  bottom: min(75vh, calc(150vh - 180px));
+  left: 50%;
+  transform: translateX(-50%) translateY(50px);
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(82, 216, 36, 0.4);
+  color: #6dff3a;
+  font-size: clamp(12px, 0.94vw, 18px);
+  font-weight: 600;
+  padding: 0.9em 1.5em;
+  border-radius: 0.9em;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s;
+  z-index: 200;
+  backdrop-filter: blur(10px);
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+ 
+.pp-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+ 
+/* ---------------------------------------------------------------------
+   KEYFRAMES
+   --------------------------------------------------------------------- */
+@keyframes ppFlow {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+ 
+@keyframes ppNodePulse {
+ 
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(82, 216, 36, 0.25));
+  }
+ 
+  50% {
+    filter: drop-shadow(0 0 18px rgba(82, 216, 36, 0.55));
+  }
+}
+ 
+@keyframes ppScan {
+  from {
+    transform: translateY(-42px);
+  }
+ 
+  to {
+    transform: translateY(100vh);
+  }
+}
+ 
+@keyframes ppCaret {
+ 
+  0%,
+  50% {
+    opacity: 1;
+  }
+ 
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+ 
+@keyframes ppGenDot {
+ 
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+ 
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+ 
+/* =====================================================================
+   PATH 04 (desktop) â€” keep the whole config on one screen.
+   Everything is tied to vh so it scales down cleanly at 110â€“130 % zoom
+   (higher zoom = smaller effective viewport height).
+   ===================================================================== */
+@media (min-width: 981px) {
+  .pp-config.is-full .pp-hero {
+    margin-bottom: clamp(3px, 0.6vh, 8px);
+  }
+ 
+  .pp-config.is-full .pp-head {
+    margin-bottom: clamp(3px, 0.5vh, 7px);
+  }
+ 
+  .pp-diagram {
+    min-height: clamp(110px, 15vh, 210px);
+  }
+}
+ 
+/* ~110 % zoom on a 1080p panel lands here */
+@media (min-width: 981px) and (max-height: 900px) {
+  .pp-diagram {
+    min-height: clamp(104px, 13vh, 170px);
+  }
+ 
+  .pp-capbar {
+    gap: clamp(12px, 1.6vw, 24px);
+    padding: clamp(9px, 1vw, 14px);
+  }
+ 
+  .pp-cap-sec {
+    font-size: clamp(20px, 2.2vw, 28px);
+  }
+ 
+  .pp-cap-scope {
+    height: clamp(34px, 2.8vw, 46px);
+  }
+ 
+  .pp-presets-full .pp-preset:not(.is-full) {
+    max-height: clamp(34px, 4.4vh, 44px);
+  }
+}
+ 
+/* ~130 % zoom / genuinely short windows â€” shave every fixed cost */
+@media (min-width: 981px) and (max-height: 760px) {
+  .pp-config.is-full .pp-title {
+    font-size: clamp(18px, 2vw, 26px);
+  }
+ 
+  .pp-config.is-full .pp-hero {
+    margin-bottom: 2px;
+  }
+ 
+  .pp-config.is-full .pp-head {
+    margin-bottom: 2px;
+  }
+ 
+  .pp-diagram {
+    min-height: clamp(88px, 11vh, 132px);
+    padding: 6px 8px;
+  }
+ 
+  .pp-capbar {
+    gap: 10px 18px;
+    padding: 9px 11px;
+  }
+ 
+  .pp-cap-slider {
+    gap: clamp(5px, 0.7vh, 8px);
+  }
+ 
+  .pp-cap-sec {
+    font-size: clamp(18px, 1.9vw, 24px);
+  }
+ 
+  .pp-cap-scope {
+    height: clamp(30px, 2.4vw, 40px);
+  }
+ 
+  .pp-cap-track,
+  .pp-cap-nudge {
+    height: 28px;
+  }
+ 
+  .pp-cap-nudge {
+    width: 28px;
+  }
+ 
+  .pp-presets-full .pp-preset:not(.is-full) {
+    max-height: clamp(30px, 3.8vh, 40px);
+    padding: 6px 14px;
+  }
+ 
+  .pp-genbar {
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+ 
+  .pp-btn {
+    padding: 0.6em 1.5em;
+  }
+}
+ 
+@media (max-width: 1280px) {
+  .pp-main {
+    width: 94%;
+  }
+}
+ 
+/* =====================================================================
+   TABLET / STACKED  (â‰¤ 980px) â€” one column, natural page scroll
+   ===================================================================== */
+@media (max-width: 980px) {
+ 
+  html:has(.pp),
+  body:has(.pp) {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+ 
+  .pp {
+    height: auto;
+    min-height: calc(100vh - 120px);
+    min-height: calc(100dvh - 120px);
+    overflow: visible;
+  }
+ 
+  .pp-main {
+    height: auto;
+    width: 94%;
+  }
+ 
+  .pp-stage {
+    overflow: visible;
+  }
+ 
+  .pp-screen {
+    position: static;
+  }
+ 
+  .pp-config {
+    overflow: visible;
+  }
+ 
+  .pp-config-body {
+    overflow: visible;
+  }
+ 
+  .pp-grid {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 14px;
+  }
+ 
+  .pp-left,
+  .pp-right {
+    height: auto;
+  }
+ 
+  .pp-diagram,
+  .pp-config.is-full .pp-diagram {
+    min-height: 0;
+    height: auto;
+  }
+ 
+  .pp-flow {
+    height: auto;
+  }
+ 
+  .pp-presets,
+  .pp-presets-full {
+    justify-content: flex-start;
+  }
+ 
+  .pp-preset,
+  .pp-presets-full .pp-preset:not(.is-full) {
+    max-height: none;
+    opacity: 1;
+    padding: clamp(13px, 2.4vw, 22px) clamp(12px, 2.4vw, 20px);
+    display: block;
+  }
+ 
+  .pp-presets-full .pp-preset:not(.is-full) .pp-pdesc {
+    display: block;
+  }
+ 
+  .pp-title {
+    font-size: clamp(24px, 4.6vw, 34px);
+  }
+ 
+  .pp-head h2 {
+    font-size: clamp(13px, 2vw, 16px);
+  }
+ 
+  .pp-eyebrow {
+    font-size: clamp(9.5px, 1.4vw, 11px);
+  }
+ 
+  .pp-chip {
+    font-size: clamp(9.5px, 1.4vw, 11px);
+  }
+ 
+  .pp-pathline {
+    font-size: clamp(11.5px, 1.7vw, 13px);
+  }
+ 
+  .pp-btn {
+    font-size: clamp(13px, 1.9vw, 15px);
+  }
+ 
+  .pp-genbar {
+    margin-bottom: 84px;
+  }
+ 
+  /* clear fixed footer */
+ 
+  /* capture card stacks vertically */
+  .pp-capbar {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+ 
+  .pp-cap-right {
+    border-left: 0;
+    padding-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding-top: 16px;
+    gap: 16px;
+  }
+ 
+  .pp-cap-controls {
+    gap: 26px;
+  }
+ 
+  .pp-cap-scope {
+    height: clamp(58px, 13vw, 84px);
+  }
+ 
+  /* code shows below instead of as a slide overlay */
+  .pp-codescreen {
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+    display: none;
+  }
+ 
+  .pp-stage.go-code .pp-config {
+    display: none;
+  }
+ 
+  .pp-stage.go-code .pp-codescreen {
+    display: flex;
+  }
+ 
+  .pp-code-layout {
+    flex-direction: column;
+    height: auto;
+    max-width: 100%;
+  }
+ 
+  .pp-code-shell {
+    height: 70vh;
+    height: 70dvh;
+    max-width: 100%;
+  }
+ 
+  .pp-code {
+    font-size: clamp(12px, 1.7vw, 13px);
+  }
+ 
+  .pp-mini,
+  .pp-miniback,
+  .pp-code-file {
+    font-size: clamp(11.5px, 1.7vw, 12.5px);
+  }
+}
+ 
+/* =====================================================================
+   PHONES  (â‰¤ 560px)
+   ===================================================================== */
+@media (max-width: 560px) {
+  .pp-main {
+    padding: 12px;
+    width: 100%;
+  }
+ 
+  .pp-cap-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+ 
+  .pp-cap-presets {
+    width: 100%;
+  }
+ 
+  .pp-code-top {
+    gap: 8px;
+  }
+ 
+  .pp-mini,
+  .pp-miniback {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+ 
+  .pp-code {
+    padding: 14px;
+    font-size: 12px;
+  }
+ 
+  .pp-ln {
+    width: 24px;
+    margin-right: 12px;
+  }
+}
+ 
+@media (prefers-reduced-motion: reduce) {
+ 
+  .pp *,
+  .pp *::before,
+  .pp *::after {
+    animation-duration: 0.001s !important;
+    transition-duration: 0.01s !important;
+  }
+}
+ 

@@ -1,0 +1,426 @@
+.container {
+  overflow-y: auto;
+    display: grid;
+    scrollbar-color: #53d824 #151515;
+    scrollbar-width: thin;
+    grid-template-columns: 1fr 1fr;
+    height: calc(100vh - 130px);
+    background-color: #151515; /* Set background color to #151515 */
+  }
+  
+  .input-section {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 20px;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .custom-toast {
+    font-family: "Gilroy-Light", var(--es-fallback); /* Optional: Custom font */
+  }
+  
+  .left-part {
+    position: sticky;
+    top: 0;
+    height: calc(100vh - 190px);
+    padding: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .left-part * {
+    height: 100%;
+    width: 100%;
+  }
+  
+  .right-part {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  
+  
+  .upload-text {
+    color: #ECECEC;
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    font-size: 30px;
+    margin: 10px auto;
+  }
+  
+  .upload-section {
+    text-align: center;
+    margin-bottom: 5px;
+  }
+  
+  .upload-line {
+    width: 100%;
+    margin-bottom: 15px;
+    height: 5px;
+    background-color: #53d824; /* Green line */
+  }
+  
+  .file-upload {
+    text-align: center;
+    position: relative;
+    transition: background-color 0.3s ease; /* Smooth background transition */
+  }
+  
+  .file-input {
+    display: none; /* Hide the file input itself */
+  }
+  
+  .file-upload.dragging {
+    background-color: #151515; /* Light green background */
+    height: 150px;
+    width: 150px;
+  }
+
+  
+  .file-label {
+    display: block;
+    cursor: pointer;
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    text-align: center;
+    color: #ECECEC;
+  }
+  
+  .upload-image {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border: 2px solid #53d824;
+    border-radius: 10px;
+    transition: box-shadow 0.3s ease-in-out, transform 0.3s ease-in-out;
+  }
+  
+  .upload-image:hover {
+    box-shadow: 0 0 15px 5px rgba(83, 216, 36, 0.8); 
+    transform: scale(1.05); 
+  }
+  
+  .input-label {
+    color: #ECECEC;
+    font-size: 16px;
+    margin-top: 10px;
+  }
+  
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #53d824;
+  }
+  
+  .placeholder img {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 10px;
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  .placeholder img:hover {
+    transform: scale(1.05); 
+  }
+  
+  .remove-btn {
+    background: none;
+    border: none;
+    display: flex;
+    position: absolute;
+    right: 0;
+    color: #53d824;
+    cursor: pointer;
+    font-size: 16px;
+    transition: color 0.2s ease-in-out;
+  }
+  
+  .remove-btn:hover {
+    transform: scale(1.1);
+    color: #ff6b6b;
+  }
+  
+  .file-label:hover .upload-image {
+    box-shadow: 0 0 15px 5px rgba(83, 216, 36, 0.8); /* Green glow effect */
+  }
+  
+  /* Ensure the placeholder image remains visible */
+  .file-upload .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .file-upload .placeholder img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+  }
+  .file-upload img:hover{
+    box-shadow: 0 0 5px 1px rgba(83, 216, 36, 0.8); /* Green glow effect */
+  }
+  
+  
+  .file-upload .file-label .upload-image {
+    display: block; /* Ensure image remains visible */
+  }
+  
+  /* Style for the input label when a file is selected */
+  .file-input:focus + .file-label,
+  .file-input:valid + .file-label {
+    color: #53d824; /* Change text color when a file is selected */
+  }
+  
+  /* Dynamically change the text of the input label, but keep the image visible */
+  .file-input:valid + .file-label .upload-image {
+    display: block; /* Keep the image visible */
+    pointer-events: none; /* Prevent interaction with the image */
+  }
+  .iframe{  
+    width: 100%;
+    height: 100%;
+    border-color: #53d824;
+    border-radius: 8px;
+    /* box-shadow: 0 0 10px #53d824;  */
+}
+  
+    
+  .output-section {
+    margin-bottom: 20px;
+    margin-top: 20px;
+    height: 100px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .output-fieldset {
+    border: 2px solid #53d824;
+    border-radius: 5px;
+    color: #ECECEC;
+    font-family: "Gilroy-Bold", var(--es-fallback);
+    font-size: 18px;
+    overflow: auto;
+    text-align: center;
+    padding: 10px; /* Add padding to prevent text from touching edges */
+    width: 320px;
+    height: 95px; 
+    position: relative;
+    background-color: transparent;
+    transition: box-shadow 0.3s ease-in-out; /* Smooth transition for the fieldset */
+  }
+  /* Make sure to set a specific font for <pre> if necessary */
+  .output-content {
+    color: #ECECEC;
+    text-align: center;
+    font-family: "Gilroy-Bold", var(--es-fallback);
+    position: relative;
+    max-height: 150px; /* Set the max height */
+    overflow: hidden;  /* Hide overflow outside of the box */
+}
+
+.output-content pre {
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    font-size: 14px;
+    white-space: pre-wrap; /* Wraps text and preserves whitespace */
+    word-wrap: break-word; /* Breaks long words */
+    margin: 0;
+    padding-right: 10px; /* Provides space so text doesn't get clipped */
+    overflow-y: auto; /* Enable vertical scrolling */
+    height: 100%; /* Ensures the text content uses all the available space */
+}
+
+/* For Webkit-based browsers (Chrome, Safari, Edge) */
+.output-content pre::-webkit-scrollbar {
+    display: none; /* Hides the scrollbar */
+}
+
+/* For Firefox */
+.output-content pre {
+    scrollbar-width: none; /* Hides the scrollbar in Firefox */
+}
+
+/* For IE 10+ */
+.output-content pre {
+    -ms-overflow-style: none; /* Hides the scrollbar in Internet Explorer */
+}
+
+.folder-path {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #333; /* Adjust the color as needed */
+  word-break: break-all; /* Handles long paths gracefully */
+}
+
+
+
+/* Container for both toggles */
+.toggle-container {
+  width: 95%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px; /* Add space between toggle switches */
+  padding: 10px;
+}
+
+/* Wrapper for each toggle and its label */
+.toggle-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+
+.toggle-slider p{
+  font-family: "Gilroy-Bold", var(--es-fallback);
+}
+/* Disabled state for the second toggle */
+.toggle-wrapper.disabled {
+  cursor: not-allowed;
+}
+.toggle-switch p {
+  font-family: "Gilroy-Light", var(--es-fallback);
+  font-size: 16px; /* Adjust the font size */
+  color: #ECECEC; /* Change text color */
+  margin-top: 8px; /* Add spacing above the text */
+}
+
+/* Style for the slider */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px; /* Increased width */
+  height: 28px; /* Increased height */
+}
+
+.switch input {
+  display: none;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 30px; /* Adjusted for larger size */
+}
+
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px; /* Increased height for the circle */
+  width: 22px; /* Increased width for the circle */
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #53d824;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(22px); /* Adjusted translation to match new size */
+}
+
+
+
+
+.input-container-folder {
+  display: flex;
+  align-items: center;
+  width: fit-content; /* Adjust width as needed */
+  border: 1px solid #53d824; /* Green border */
+  border-radius: 8px; /* Rounded corners */
+  background-color: #151515; /* Dark background */
+  padding: 5px;
+}
+
+
+.input-container-folder textarea {
+  width: 320px; /* Adjust input width */
+  background-color: #151515; /* Match background to container */
+  color: #ECECEC; /* Light gray text color */
+  border: none; /* Remove textarea border */
+  font-size: 14px;
+  font-family: "Gilroy-Light", var(--es-fallback);
+  line-height: 2.5;
+  resize: none; /* Prevent resizing */
+  outline: none; /* Remove focus outline */
+  padding: 0 10px; /* Add padding for text inside */
+}
+
+.input-container-folder button {
+  background-color: #555; /* Button background color */
+  color: #ECECEC; /* White text */
+  border: none; /* Remove button border */
+  padding: 5px 15px; /* Adjust button padding */
+  font-size: 16px;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  border-radius: 5px; /* Rounded corners for button */
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-left: 10px; /* Space between textarea and button */
+}
+
+.input-container-folder button:hover {
+  background-color: #777; /* Slightly lighter on hover */
+}
+
+.input-container-folder.disabled {
+  cursor: not-allowed;
+  opacity: 0.5; /* Dim the appearance */
+}
+
+  
+  /* Media Queries for responsiveness */
+  @media screen and (max-width: 768px) {
+    .input-section {
+      flex-direction: column; /* Stack elements vertically */
+      gap: 20px; /* Reduce space between inputs */
+    }
+  
+    .left-part {
+      margin-left: 20px;
+      margin-top: 20px;
+      width: 100%;
+      height: 300px; /* Adjust size on smaller screens */
+    }
+  
+    .right-part {
+      padding: 10px;
+      width: 100%;
+    }
+  
+    .upload-line {
+      width: 80%; /* Increase line width on smaller screens */
+    }
+  
+    .file-info {
+      max-width: 100%;
+    }
+  
+    .upload-image {
+      width: 120px;
+      height: 120px;
+    }
+  
+    .file-name {
+      font-size: 14px; /* Smaller font size on smaller screens */
+    }
+  }

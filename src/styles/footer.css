@@ -1,0 +1,142 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  padding: 1rem 0;
+  background-color: #505050;
+  color: white;
+  z-index: 999;
+  font-family: 'Gilroy-Medium', sans-serif;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: center;
+  font-size: 13px;
+  align-items: center;
+  flex-direction: column;
+}
+
+/* Footer Text */
+.footer p {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+ 
+/* Footer Logo Container */
+.footer-logo {
+  position: absolute;
+  bottom: 5px;
+  left: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+}
+
+.footer-logo-img {
+  height: 30px;
+  width: auto;
+
+}
+
+.footer-logo-img:hover {
+  transform: scale(1.1);
+  transition: transform 0.3s ease;
+}
+
+
+.footer-right {
+  position: absolute;
+  bottom: 12px;
+  right: 30px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.footer-color-box {
+  height: 20px;
+  width: 20px;
+  border-radius: 2px;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.footer-color-box.connected {
+  background-color: #53d824;
+}
+
+.footer-color-box.disconnected {
+  background-color: red;
+}
+
+/* An absent link that nothing depends on. UART is a fallback now - data
+   collection and the flasher console both run over the probe - so a missing
+   COM port is "not present", not a fault, and must not read as red. */
+.footer-color-box.optional {
+  background-color: #6b7280;
+}
+
+.footer-color-box:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+ 
+.footer-color-boxes {
+  display: flex;
+  top: 8px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px;
+  border: 2px solid #53d824;
+  border-radius: 10px;
+  background-color: #505050;
+  width: 280px;
+  position: relative;
+  margin: 0 auto;
+}
+
+.footer-text {
+  flex-grow: 1;
+  text-align: left;
+}
+
+.footer-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+@media screen and (max-width: 970px) {
+  .footer-right {
+    font-size: 10px;
+    width: 35%;
+  }
+  
+  .footer-content p {
+    font-size: 8px;
+    position: relative;
+    left: -16%;
+    /* Negative value moves it to the left */
+  }
+
+
+  .footer-logo-img {
+    height: 30px;
+    width: auto;
+    position: relative;
+    right: 15px;
+  }
+}
+/* both boxes, both states - keep the selectors symmetric */
+.footer-color-box.warning      { background: #f59e0b; }
+

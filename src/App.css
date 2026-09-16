@@ -1,0 +1,24 @@
+@import "./styles/body.css";
+@import "./styles/Button.css";
+@import "./styles/audioDataCollection.css";
+@import "./styles/footer.css";
+@import "./styles/howItworks.css";
+@import "./styles/navbar.css";
+@import "./styles/pythoninfernce.css";
+@import "./styles/resultLog.css";
+@import "./styles/RunModel.css";
+@import "./styles/sensordatacollection.css";
+@import "./styles/training.css";
+@import "./styles/VideoDataCollection.css";
+.App{
+  text-align: center;
+  font-family: 'Gilroy-Light', sans-serif;
+}
+
+.monaco-editor,
+.monaco-editor .overflow-guard,
+.monaco-editor .monaco-scrollable-element {
+    border-radius: 10px !important;
+    overflow: hidden !important;
+
+}

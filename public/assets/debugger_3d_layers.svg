@@ -1,0 +1,21 @@
+<svg width="600" height="600" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+<rect width="100%" height="100%" fill="#1a1a1a"/>
+
+<!-- Layered 3D boxes -->
+<g stroke="#53d824" fill="none" stroke-width="3">
+  <polygon points="150,420 450,420 380,470 80,470"/>
+  <polygon points="180,350 420,350 360,390 120,390"/>
+  <polygon points="210,290 390,290 340,320 160,320"/>
+  <polygon points="240,240 360,240 320,265 200,265"/>
+</g>
+
+<!-- Glow dots -->
+<g fill="#53d824">
+  <circle cx="300" cy="230" r="5"/>
+  <circle cx="260" cy="300" r="4"/>
+  <circle cx="340" cy="300" r="4"/>
+  <circle cx="220" cy="360" r="3"/>
+  <circle cx="380" cy="360" r="3"/>
+</g>
+
+</svg>

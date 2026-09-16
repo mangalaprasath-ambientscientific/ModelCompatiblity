@@ -1,0 +1,401 @@
+/* agent-gate.css
+   The AgentGate JSX references these class names; without this file the gate
+   renders as unstyled text. Everything is prefixed agent- so it cannot
+   collide with the existing EdgeSphere stylesheets.
+
+   Palette and type are the app's own - #151515 ground, #1a1a1a surface,
+   #2c2c2c hairlines, #53d824 accent, #ECECEC text, Gilroy throughout - so the
+   gate reads as a page of the product rather than a browser error screen.
+
+   SIZE: every dimension inside the card is written as `old value x
+   --ag-scale`, so the whole panel - box, type, spacing, spinner - resizes
+   from one number and stays in proportion. Change --ag-scale, not the
+   individual values. The navbar pill at the bottom of this file is
+   deliberately outside that system: it lives in the navbar, not in the gate,
+   and has to keep the navbar's own size. */
+
+.agent-gate {
+  /* 1 = the original panel. 1.3 = 30% larger. */
+  --ag-scale: 1.3;
+
+  /* The card's width is tracked separately from --ag-scale so the panel can
+     be made wider without the type and spacing growing with it. 34rem was the
+     original measure; 44.2rem is that widened by a further 30%. It is still
+     multiplied by --ag-scale below, so the narrow-screen steps at the bottom
+     of this file pull it back in along with everything else. */
+  --ag-width: 44.2rem;
+
+  /* the app chrome the gate has to sit between: a static navbar above and a
+     fixed footer below. Same constants the other page shells use. */
+  --ag-nav-h: 82px;
+  --ag-footer-h: 52px;
+
+  --ag-bg: #151515;
+  --ag-surface: #1a1a1a;
+  --ag-surface-2: #202020;
+  --ag-line: #2c2c2c;
+  --ag-accent: #53d824;
+  --ag-text: #ECECEC;
+  --ag-muted: rgba(236, 236, 236, 0.58);
+  --ag-faint: rgba(236, 236, 236, 0.36);
+  --ag-amber: #53d824;
+  --ag-red: #e5484d;
+
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Pinned into the band between the two bars rather than left in the flow.
+     html and body are overflow:hidden, so the document cannot scroll and
+     anything that runs past the fold is unreachable; a fixed box is also
+     immune to being clipped by an ancestor's overflow. It scrolls internally,
+     so the tallest panel still reaches its last line on a short window. */
+  position: fixed;
+  top: var(--ag-nav-h);
+  left: 0;
+  right: 0;
+  bottom: var(--ag-footer-h);
+  padding: 2rem 1.25rem;
+  overflow-y: auto;
+  background-color: var(--ag-bg);
+  color: var(--ag-text);
+  font-family: "Gilroy-Medium", sans-serif;
+}
+
+.agent-gate *,
+.agent-gate *::before,
+.agent-gate *::after { box-sizing: border-box; }
+
+.agent-card {
+  position: relative;
+  width: 100%;
+  max-width: calc(var(--ag-width) * var(--ag-scale));
+  padding: calc(1.9rem * var(--ag-scale))
+           calc(1.9rem * var(--ag-scale))
+           calc(1.75rem * var(--ag-scale));
+  /* A faintly accent-tinted edge rather than a grey one: at this size a
+     neutral hairline disappears into the background, and the green ties the
+     panel to the rest of the product without shouting. */
+  border: 3px solid rgba(84, 216, 36, 0.566);
+  border-radius: calc(16px * var(--ag-scale));
+  /* Top-lit surface - a shade lighter at the crown, settling to the page
+     ground at the foot - so the card has a direction instead of reading as a
+     flat rectangle. */
+  background: linear-gradient(180deg, #1e1e1e 0%, #171717 100%);
+  /* Four layers, each doing one job: an inner highlight along the top edge to
+     catch the light, a tight contact shadow, a wide soft drop for the lift
+     off the page, and a low green bloom that keeps the accent from being
+     confined to the border. */
+  box-shadow:
+    inset 0 1px 0 rgba(236, 236, 236, 0.055),
+    0 1px 2px rgba(0, 0, 0, 0.55),
+    0 22px 50px -18px rgba(0, 0, 0, 0.9),
+    0 0 80px -24px rgba(83, 216, 36, 0.28);
+  color: var(--ag-text);
+  text-align: left;
+  animation: agent-card-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes agent-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.agent-card h2 {
+  margin: 0 0 calc(0.7rem * var(--ag-scale));
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: calc(1.15rem * var(--ag-scale));
+  font-weight: normal;
+  letter-spacing: 0.01em;
+  line-height: 1.32;
+  color: var(--ag-text);
+}
+
+.agent-card p {
+  margin: 0 0 calc(0.95rem * var(--ag-scale));
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: calc(0.9rem * var(--ag-scale));
+  line-height: 1.6;
+  color: var(--ag-muted);
+}
+
+.agent-card strong {
+  font-family: "Gilroy-Medium", sans-serif;
+  font-weight: normal;
+  color: var(--ag-text);
+}
+
+/* all three are <p>, so they must out-specify `.agent-card p` above */
+.agent-card .agent-note,
+.agent-card .agent-hint,
+.agent-card .agent-warn { font-size: calc(0.8125rem * var(--ag-scale)); }
+
+.agent-card .agent-hint { color: var(--ag-faint); }
+.agent-card .agent-warn { color: var(--ag-amber); }
+
+/* the last line of a card should not leave a dangling gap */
+.agent-card > p:last-child { margin-bottom: 0; }
+
+.agent-steps,
+.agent-missing {
+  margin: 0 0 calc(1.1rem * var(--ag-scale)) calc(1.15rem * var(--ag-scale));
+  padding: 0;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: calc(0.875rem * var(--ag-scale));
+  line-height: 1.8;
+  color: var(--ag-muted);
+}
+
+.agent-steps::marker,
+.agent-steps li::marker,
+.agent-missing li::marker { color: var(--ag-accent); }
+
+.agent-card code {
+  padding: 0.1em 0.36em;
+  border: 1px solid var(--ag-line);
+  border-radius: 5px;
+  background: var(--ag-surface-2);
+  color: var(--ag-accent);
+  font-size: 0.85em;
+}
+
+/* ---------- buttons ---------- */
+
+.agent-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: calc(0.3rem * var(--ag-scale)) calc(0.55rem * var(--ag-scale))
+          calc(0.3rem * var(--ag-scale)) 0;
+  padding: calc(0.66rem * var(--ag-scale)) calc(1.35rem * var(--ag-scale));
+  border: 1px solid var(--ag-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ag-text);
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: calc(0.875rem * var(--ag-scale));
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease,
+    box-shadow 0.2s ease, transform 0.18s ease;
+}
+
+.agent-btn:hover {
+  border-color: rgba(83, 216, 36, 0.5);
+  background: var(--ag-surface-2);
+}
+
+.agent-btn:active { transform: scale(0.975); }
+
+.agent-btn-primary {
+  border-color: var(--ag-accent);
+  background: var(--ag-accent);
+  color: #101010;
+  box-shadow: 0 6px 18px -8px rgba(83, 216, 36, 0.75);
+}
+
+.agent-btn-primary:hover {
+  border-color: var(--ag-accent);
+  background: var(--ag-accent);
+  box-shadow: 0 8px 22px -8px rgba(83, 216, 36, 0.9);
+  filter: brightness(1.08);
+}
+
+.agent-link {
+  display: inline-block;
+  margin-top: calc(0.55rem * var(--ag-scale));
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ag-accent);
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: calc(0.8125rem * var(--ag-scale));
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.agent-link:hover { opacity: 0.75; text-decoration: underline; }
+
+.agent-btn:focus-visible,
+.agent-link:focus-visible {
+  outline: 2px solid var(--ag-accent);
+  outline-offset: 3px;
+}
+
+/* ---------- other platforms ---------- */
+
+.agent-other {
+  margin: calc(1.1rem * var(--ag-scale)) 0;
+  padding-top: calc(1.1rem * var(--ag-scale));
+  border-top: 1px solid var(--ag-line);
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: calc(0.8125rem * var(--ag-scale));
+}
+
+.agent-other summary {
+  cursor: pointer;
+  color: var(--ag-muted);
+  transition: color 0.2s ease;
+}
+
+.agent-other summary:hover { color: var(--ag-text); }
+.agent-other summary::marker { color: var(--ag-accent); }
+
+.agent-other ul {
+  margin: calc(0.6rem * var(--ag-scale)) 0 0 calc(1.15rem * var(--ag-scale));
+  padding: 0;
+  line-height: 1.9;
+}
+
+.agent-other a { color: var(--ag-accent); text-decoration: none; }
+.agent-other a:hover { text-decoration: underline; }
+.agent-unavailable { color: var(--ag-faint); }
+
+/* ---------- waiting ---------- */
+
+/* also a <p> - scoped for the same reason as the notes above */
+.agent-card .agent-waiting {
+  display: flex;
+  align-items: center;
+  gap: calc(0.6rem * var(--ag-scale));
+  margin: calc(1.1rem * var(--ag-scale)) 0 0;
+  font-size: calc(0.8125rem * var(--ag-scale));
+  color: var(--ag-muted);
+}
+
+/* ---------- spinner ----------
+   Fallback first: a plain two-tone ring, so a browser without mask support
+   still shows something turning. The @supports block below replaces it with a
+   tapered comet sweep - one continuous arc fading out behind the head, which
+   reads as motion even at small sizes where a single ring segment does not. */
+
+.agent-spinner {
+  --ag-ring: calc(2.5px * var(--ag-scale));
+  width: calc(2.25rem * var(--ag-scale));
+  height: calc(2.25rem * var(--ag-scale));
+  margin: 0 auto calc(1.1rem * var(--ag-scale));
+  flex: none;
+  border: var(--ag-ring) solid rgba(83, 216, 36, 0.16);
+  border-top-color: var(--ag-accent);
+  border-radius: 50%;
+  animation: agent-spin 0.85s linear infinite;
+}
+
+@supports ((mask: radial-gradient(#000, #000)) or
+           (-webkit-mask: radial-gradient(#000, #000))) {
+  .agent-spinner {
+    border: 0;
+    background: conic-gradient(
+      from 0deg,
+      rgba(83, 216, 36, 0) 0deg,
+      rgba(83, 216, 36, 0.12) 110deg,
+      var(--ag-accent) 350deg
+    );
+    -webkit-mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - var(--ag-ring)),
+      #000 calc(100% - var(--ag-ring))
+    );
+    mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - var(--ag-ring)),
+      #000 calc(100% - var(--ag-ring))
+    );
+    filter: drop-shadow(0 0 calc(6px * var(--ag-scale)) rgba(83, 216, 36, 0.3));
+  }
+}
+
+.agent-spinner-sm {
+  --ag-ring: calc(2px * var(--ag-scale));
+  width: calc(0.95rem * var(--ag-scale));
+  height: calc(0.95rem * var(--ag-scale));
+  margin: 0;
+}
+
+@keyframes agent-spin { to { transform: rotate(360deg); } }
+
+/* The CHECKING card holds nothing but the spinner and one line, so centre it
+   and drop the body-copy bottom margin - it is a status, not a paragraph. */
+.agent-card > .agent-spinner:first-child + p {
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.agent-card:has(> .agent-spinner:first-child) {
+  padding: calc(2.4rem * var(--ag-scale))
+           calc(1.9rem * var(--ag-scale))
+           calc(2.25rem * var(--ag-scale));
+}
+
+/* ---------- navbar pill ----------
+   Outside the --ag-scale system on purpose: it is rendered in the navbar, so
+   it has to match the navbar's size, not the gate's. */
+
+.agent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.28rem 0.7rem;
+  border: 1px solid #2c2c2c;
+  border-radius: 999px;
+  background: #1a1a1a;
+  color: rgba(236, 236, 236, 0.72);
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.agent-pill-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: rgba(236, 236, 236, 0.36);
+  flex: none;
+}
+
+.agent-pill-checking .agent-pill-dot {
+  animation: agent-blink 1.2s ease-in-out infinite;
+}
+
+.agent-pill-ready .agent-pill-dot {
+  background: #53d824;
+  box-shadow: 0 0 8px rgba(83, 216, 36, 0.8);
+}
+
+.agent-pill-not_ready .agent-pill-dot,
+.agent-pill-outdated .agent-pill-dot { background: #f0a92e; }
+
+.agent-pill-blocked .agent-pill-dot,
+.agent-pill-missing .agent-pill-dot { background: #e5484d; }
+
+@keyframes agent-blink { 50% { opacity: 0.25; } }
+
+/* ---------- motion / responsive ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-spinner { animation-duration: 2.5s; }
+  .agent-card { animation: none; }
+  .agent-pill-checking .agent-pill-dot { animation: none; }
+}
+
+/* the navbar stacks its logo above its links here, so it is taller */
+@media (max-width: 768px) {
+  .agent-gate { --ag-nav-h: 124px; }
+}
+
+/* A 30%-larger panel does not fit a phone, so step the scale back down
+   rather than let the card overflow its own band. */
+@media (max-width: 560px) {
+  .agent-gate { --ag-scale: 1.12; }
+}
+
+@media (max-width: 420px) {
+  .agent-gate {
+    --ag-scale: 1;
+    padding: 1.25rem 0.9rem;
+  }
+  .agent-btn { width: 100%; margin-right: 0; }
+}

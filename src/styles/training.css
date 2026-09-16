@@ -1,0 +1,466 @@
+.container-training {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* Two equal-width columns */
+    height: calc(100vh - 130px); /* Full viewport height minus margin */
+    background-color: #151515; /* Dark background */
+    grid-column-gap: 15px; /* Gap between left and right parts */
+    overflow: hidden; /* Prevent scrollbars on the main container */
+}
+
+.container-training::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+}
+
+.container-training::-webkit-scrollbar-thumb {
+    background-color: #53d824; /* Green scrollbar thumb */
+    border-radius: 5px; /* Rounded scrollbar thumb */
+}
+
+.container-training::-webkit-scrollbar-track {
+    background-color: #151515; /* Match the background */
+}
+
+.left-part-training,
+.right-part-training {
+    top: 1%;
+    padding: 20px;
+    display: flex;
+    flex-direction: column; /* Vertical alignment */
+    justify-content: flex-start; /* Align content to the top */
+    gap: 10px;
+    background-color: #1e1e1e;
+    color: #ECECEC;
+    border: 2px solid #53d824; /* Green border */
+    border-radius: 10px; /* Rounded corners */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    height: calc(100vh - 190px); /* Adjust height to match container height */
+    overflow-y: auto; /* Enable vertical scrolling */
+    scrollbar-color: #53d824 #151515; /* Green thumb on dark track */
+    scrollbar-width: thin; /* Narrow scrollbar */
+}
+
+.left-part-training *,
+.right-part-training * {
+    width: 100%;
+}
+
+.custom-toast {
+    
+    font-family: "Gilroy-Light", var(--es-fallback); /* Optional: Custom font */
+
+  }
+
+.path-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.path-input {
+    flex: 5; /* Input takes 3/4 of the space */
+    font-size: 16px;
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    padding: 10px;
+    border: 1px solid #2a2a2a; /* Subtle border */
+    border-radius: 5px;
+    background-color: #151515; /* Display box background */
+    color: #ECECEC; /* Display box text color */
+}
+
+.browse-button {
+    flex: 1; /* Button takes 1/4 of the space */
+    padding: 10px 15px;
+    border: none;
+    background-color: #53d824; /* Green button */
+    color: #151515; /* Dark button text */
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: "Gilroy-Bold", var(--es-fallback);
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+.left-part-training {
+    position: relative;
+    height: calc(100vh - 165px);
+    padding: 10px;
+    left: 4px;
+    display: flex;
+    flex-direction: column; /* Vertical alignment */
+    justify-content: flex-start; /* Align content to the top */
+    gap: 10px;
+    background-color: #1e1e1e;
+    color: #ECECEC;
+    border: 2px solid #53d824; /* Green border */
+    border-radius: 10px; /* Rounded corners */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    overflow-y: auto; /* Enable vertical scrolling */
+    scrollbar-color: #53d824 #151515; /* Green thumb on dark track */
+    scrollbar-width: thin; /* Narrow scrollbar */
+}
+
+.left-part-training::-webkit-scrollbar {
+    width: 8px; /* Width of the scrollbar */
+}
+
+.left-part-training::-webkit-scrollbar-thumb {
+    background-color: #53d824; /* Green scrollbar thumb */
+    border-radius: 5px; /* Rounded scrollbar thumb */
+}
+
+.left-part-training::-webkit-scrollbar-track {
+    background-color: #151515; /* Match the background */
+}
+
+
+.browse-button:hover {
+    background-color: #45b71c; /* Darker green on hover */
+}
+
+.form-inputs {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between fields */
+}
+
+.form-group {
+    display: flex;
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Align items to the left */
+    gap: 20px; /* Space between label and input */
+    width: 100%; /* Adjust width to content */
+}
+
+.form-group label {
+    flex: none; /* Prevent the label from stretching */
+    width: 160px; /* Fixed width for labels */
+    text-align: right; /* Align label text to the right */
+    color: #ECECEC; /* Light text */
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    font-size: 14px;
+    margin-right: 15px; /* Space between label and input */
+}
+
+.form-group input{
+    flex: 1; /* Allow inputs to take remaining space */
+    max-width: 240px; /* Optional: Max width for responsiveness */
+    padding: 10px;
+    border: 1px solid #2a2a2a; /* Subtle border */
+    border-radius: 5px;
+    background-color: #151515; /* Match the input box background */
+    color: #ececec; /* Match the text color */
+    font-size: 14px;
+    font-family: "Gilroy-Light", var(--es-fallback);
+}
+.form-group select {
+    flex: 1; /* Allow inputs to take remaining space */
+    max-width: 270px; /* Optional: Max width for responsiveness */
+    padding: 10px;
+    border: 1px solid #2a2a2a; /* Subtle border */
+    border-radius: 5px;
+    background-color: #151515; /* Match the input box background */
+    color: #ececec; /* Match the text color */
+    font-size: 14px;
+    font-family: "Gilroy-Light", var(--es-fallback);
+}
+
+
+select {
+    cursor: pointer;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+select:focus,
+input:focus {
+    outline: none; /* Remove default outline */
+    border-color: #53d824;/* Green border on focus */
+}
+
+.start-button {
+    background-color: #7DE25A; /* Green background */
+    font-family: "Gilroy-Bold", var(--es-fallback);
+    color: #151515; /* Dark text */
+    padding: 10px 15px; /* Adjust padding for better spacing */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer;
+    font-size: 16px; /* Standard font size */
+    margin: 20px auto; /* Center button horizontally with spacing */
+    width: 30%; /* Allow button to take natural width */
+    text-align: center;
+    display: inline-block; /* Align buttons inline and avoid full-width */
+    border: none; /* Remove border */
+    transition: background-color 0.3s; /* Smooth hover effect */
+}
+
+.start-button:hover {
+    background-color: #53d824;
+}
+
+.right-part-training {
+    position:relative;
+    right: 4px;
+    display: flex; /* Enable Flexbox */
+    flex-direction: column; /* Stack items vertically */
+    align-items: flex-start; /* Align items to the top */
+    justify-content: center; /* Align content to the top */
+    background-color: #1e1e1e; /* Dark background */
+    color: #ECECEC; /* Light text */
+    border: 2px solid #53d824; /* Green border */
+    border-radius: 10px; /* Rounded corners */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3); /* Add shadow */
+    height: calc(100vh - 165px); /* Adjust height */
+    padding: 10px;
+    overflow-y: auto; /* Enable vertical scrolling */
+    text-align: center; /* Center align text */
+    gap: 15px; /* Add spacing between elements */
+}
+.right-part-training img {
+    max-width: 100%; /* Ensure images fit within the container */
+    height: auto; /* Maintain aspect ratio */
+}
+
+.right-part-training p {
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    font-size: 26px;
+    font-weight: bold;
+    color: #8A8A8A; /* Green color */
+    margin-top: 20px;
+    animation: fade-in 1s ease-in-out;
+}
+.right-part-training .load-images{
+    height: inherit;
+}
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container-training {
+        grid-template-columns: 1fr; /* Change to single column on smaller screens */
+    }
+
+    .left-part-training,
+    .right-part-training {
+        height: auto; /* Adjust height for better fit */
+    }
+}
+
+/* Hover Effect for Inputs */
+input:hover,
+select:hover {
+    border-color: #7DE25A; /* Brighter green border on hover */
+    transition: border-color 0.2s ease-in-out; /* Smooth transition */
+}
+
+/* Tooltip for Labels */
+.form-group label {
+    position: relative;
+    cursor: help; /* Indicate that it's interactive */
+}
+
+.form-group label:hover::after {
+    content: attr(data-tooltip); /* Show tooltip text */
+    position: absolute;
+    top: 50%;
+    left: 100%; /* Position the tooltip to the right of the label */
+    transform: translate(10px, -50%);
+    background-color: #53d824;
+    color: #151515;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+
+
+
+
+.validation-error {
+    color: #e25a5a; /* Red error text */
+    font-size: 12px;
+    font-family: "Gilroy-Light", var(--es-fallback);
+    margin-top: -10px; /* Adjust position */
+}
+
+/* Fix for Sticky Parts */
+.left-part-training,
+.right-part-training {
+    z-index: 1; /* Prevent overlapping issues */
+}
+
+/* Loading Indicator for Start Button */
+.start-button:disabled {
+    background-color: #6c6c6c; /* Grey background */
+    cursor: not-allowed; /* Disable pointer */
+    opacity: 0.7;
+}
+
+.start-button.loading::after {
+    content: "â³ Loading..."; /* Add loading text */
+    color: white;
+    margin-left: 10px; /* Space from the button text */
+    animation: blink 1s linear infinite; /* Add blinking animation */
+}
+
+@keyframes blink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Custom Number Input Styling */
+input[type="number"] {
+    appearance: textfield; /* Hide default spinner for consistent look */
+    padding-right: 10px; /* Add padding to match other inputs */
+}
+
+.metrics {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.metric-box {
+    display: flex; /* Enable Flexbox for the box */
+    flex-direction: column; /* Stack items vertically */
+    align-items: center; /* Center align items horizontally */
+    justify-content: space-between; /* Space between title and content */
+    flex: 1; /* Ensure all boxes are the same width */
+    max-width: 180px; /* Set a maximum width */
+    height: 60px; /* Fixed height for consistent alignment */
+    padding: 15px; /* Add padding inside the boxes */
+    margin: 0 10px; /* Space between the boxes */
+    border-radius: 8px; /* Rounded corners */
+    text-align: center; /* Center the content inside */
+    transition: background-color 0.3s ease;
+    background-color: #151515; /* Light background color */
+}
+
+.metric-box {
+    border: 1px solid transparent; /* Start with no visible border */
+    transition: border-color 0.5s ease-in-out; /* Smooth transition for border color */
+}
+
+.metric-box:hover {
+    border: 1px solid #53d824; /* Add a green border on hover */
+}
+
+.metric-box h4 {
+    margin-top: 0; /* Remove any default margin */
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    font-size: 14px; /* Font size for the title */
+    color: #ECECEC; /* Darker color for the title */
+}
+
+.metric-box p {
+    font-size: 14px; /* Slightly larger font for emphasis */
+    font-family: "Gilroy-Bold", var(--es-fallback); /* Use bold for results */
+    color: #ECECEC; /* Slightly lighter color for the text */
+    margin: 0; /* Remove default margin */
+    align-self:baseline; /* Center the result in the box */
+}
+
+.window-input-section {
+    margin-top: 10px;
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 15px; 
+    width: 80%; 
+    margin: 30px auto; 
+    
+}
+
+
+.path-input-update {
+    flex: 4; /* Input takes up more space */
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    align-items: center;
+    text-align: center;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #151515;
+    color: #ECECEC;
+    height: 20px; /* Fixed height for the textarea */
+    resize: none; /* Prevent resizing of the textarea */
+}
+.path-input-update:focus {
+    border-color: #53d824; /* Change border color to green on focus */
+    outline: none; /* Remove default outline for a cleaner look */
+}
+
+.browse-button-update {
+    flex: 1; /* Button takes up 1/3 of the space */
+    padding: 10px 15px;
+    border: none;
+    background-color: #53d824;
+    color: #151515;
+    border-radius: 5px;
+    cursor: pointer;
+    font-family: "Gilroy-Bold", var(--es-fallback);
+    font-size: 14px;
+    transition: background-color 0.3s;
+    width: auto; /* Button width adjusts to its content */
+}
+
+.browse-button-update:hover {
+    background-color: #45b71c;
+}
+
+.image-box h4{
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    font-size: 24px;
+    color: #ECECEC;
+}
+
+.load-images .swiper-button-next,.load-images .swiper-button-prev {
+    display: flex;
+    width: 10%;
+}
+.load-images .swiper-button-next::after,.load-images .swiper-button-prev::after {
+    font-size: 20px;
+    color: #ECECEC;
+}
+  
+.load-images img{
+    margin: auto;
+}
+
+.load-images h4 {
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    font-size: 24px;
+    color: #ECECEC;
+}
+
+.load-images .swiper-button-next{
+    justify-content: end;
+    position: absolute;
+    top: 5%;
+    right: 30%;
+}
+
+.load-images .swiper-button-prev {
+    justify-content: start;
+    position: absolute;
+    top: 5%;
+    left: 30%;
+}
+  
+  

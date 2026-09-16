@@ -1,0 +1,228 @@
+.inference-placeholder img {
+  width: 330px;
+  height: 80px;
+  margin-bottom: 30px;
+  transition: transform 0.2s ease-in-out;
+}
+
+.inference-placeholder img:hover {
+  box-shadow: 0 0 10px 2px rgba(83, 216, 36, 0.8); /* Green glow effect */
+}
+
+.inference-upload-section {
+  position: relative;
+}
+
+.custom-toast {
+  font-family: "Gilroy-Light", var(--es-fallback); /* Optional: Custom font */
+}
+
+.upload-section-wrapper {
+  border: 2px dashed #ccc;
+  padding: 20px;
+  text-align: center;
+  transition: border-color 0.3s ease;
+}
+
+.upload-section-wrapper.dragging {
+  border-color: #007bff; /* Highlight color */
+  background-color: #f0f8ff; /* Light background for feedback */
+}
+
+
+.inference-upload-text {
+  position: absolute;
+  top: 30px;
+  left: 72px;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 16px;
+  color: #ececec;
+  width: 225px;
+  word-break: break-all;
+  display: flex;
+  gap: 10px;
+}
+
+.inference-close-btn {
+  background: none;
+  border: none;
+  display: flex;
+  position: relative;
+  right: 0;
+  color: #53d824;
+  cursor: pointer;
+  font-size: 16px;
+  transition: color 0.2s ease-in-out;
+}
+
+.inference-close-btn:hover {
+  transform: scale(1.1);
+  color: #ff6b6b;
+}
+
+.inference-play-section {
+  display: flex;
+  justify-content: start;
+  width: 280px;
+  gap: 30px;
+  color: #ECECEC;
+}
+
+.inference-play-section img {
+  width: 45px;
+  height: 45px;
+  transition: box-shadow 0.3s ease-in-out; /* Smooth transition for glow effect */
+}
+
+.inference-play-section img.glow {
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.8); /* Green glow effect */
+}
+.inference-close-btn {
+  cursor: pointer;
+}
+
+.inference-close-btn.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.inference-output-field {
+  margin-top: 4px;
+  font-size: 14px;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  color: #ECECEC;
+}
+
+.result-output-first {
+  margin-bottom: 10px;
+  margin-top: 20px;
+  height: 60px;
+  width: 45%;
+  display: flex;
+  justify-content: center;
+}
+
+.output-fieldset-first {
+  border: 2px solid #53d824;
+  border-radius: 5px;
+  color: #ECECEC;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  position: relative;
+  justify-content: center;
+  font-size: 14px;
+  overflow: auto;
+  text-align: center;
+  padding: 10px; /* Add padding to prevent text from touching edges */
+  width: 220px;
+  height: auto; /* Allow height to grow with content */
+  position: relative;
+  background-color: transparent;
+  transition: box-shadow 0.3s ease-in-out; /* Smooth transition for the fieldset */
+}
+
+.output-content-first {
+  font-size: 14px;
+  color: #ECECEC;
+  text-align: center;
+}
+
+.result-output-second {
+  margin-bottom: 20px;
+  margin-top: 20px;
+  height: 60px;
+  width: 45%;
+  display: flex;
+  justify-content: center;
+}
+
+.output-fieldset-second {
+  border: 2px solid #53d824;
+  border-radius: 5px;
+  color: #ECECEC;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  position: relative;
+  justify-content: center;
+  font-size: 14px;
+  overflow: auto;
+  text-align: center;
+  padding: 10px; /* Add padding to prevent text from touching edges */
+  width: 220px;
+  height: auto; /* Allow height to grow with content */
+  position: relative;
+  background-color: transparent;
+  transition: box-shadow 0.3s ease-in-out; /* Smooth transition for the fieldset */
+}
+
+.output-content-second {
+  font-size: 14px;
+  color: #ECECEC;
+  text-align: center;
+}
+.result-output-container{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+
+}
+
+.slider {
+  display: flex;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  flex-direction: column; /* Stack sliders vertically */
+  gap: 30px; /* Add space between the sliders */
+  width: 33%; /* Full width of the container */
+  padding: 10px; /* Padding for better spacing */
+  box-sizing: border-box; /* Include padding in width/height calculation */
+}
+
+.slider-container {
+  display: flex;
+  flex-direction: column; /* Stack label and slider vertically */
+  gap: 5px; /* Add space between label and slider */
+}
+
+.slider-label {
+  font-size: 14px;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  color: #ECECEC; /* Text color */
+}
+
+.slider-input {
+  -webkit-appearance: none; /* Remove default browser styles */
+  appearance: none;
+  width: 100%; /* Full width of container */
+  height: 8px; /* Thickness of the slider */
+  align-items: center;
+  background: #8A8A8A; /* Slider track color */
+  border-radius: 2px; /* Rounded edges */
+  outline: none; /* Remove focus outline */
+  transition: background 0.3s;
+}
+
+.slider-input:hover {
+  background: #aaa; /* Change track color on hover */
+}
+
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px; /* Thumb size */
+  height: 16px;
+  background: #53d824; /* Thumb color */
+  border-radius: 50%; /* Circular thumb */
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.slider-input::-webkit-slider-thumb:hover {
+  background: #3cb318; /* Darker green on hover */
+}
+
+@media screen and (max-width: 768px) {
+  .upload-text {
+    font-family: "Gilroy-Medium", var(--es-fallback);
+    color: #ECECEC;
+    font-size: 30px;
+  }
+}

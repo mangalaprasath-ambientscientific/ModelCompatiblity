@@ -1,0 +1,1340 @@
+.input-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.container-audio {
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: calc(100vh - 130px);
+  background-color: #151515;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.container-audio::-webkit-scrollbar {
+  display: none;
+}
+
+
+.left-part-animation {
+  position: sticky;
+  top: 0;
+  height: calc(100vh - 190px);
+  padding: 30px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.left-part-animation * {
+  width: 100%;
+}
+
+/* Wrapper to hold select and arrow */
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Select box */
+.input-box {
+  width: 100%;
+  text-align: center;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 16px;
+  background-color: #151515;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 4px;
+  color: #ECECEC;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+
+.input-dropdown {
+  width: 100%;
+  text-align: center;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 16px;
+  background-color: #151515;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 4px;
+  color: #ECECEC;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+/* Arrow background */
+.select-wrapper::before {
+  content: "";
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 80%;
+  background: #2c2c2c;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Custom Arrow */
+.select-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid #53d824;
+  pointer-events: none;
+}
+
+.wrapper-1 {
+  position: relative;
+  width: 100%;
+}
+
+.wrapper-1::before {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 60%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 65%;
+  background: #2c2c2c;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.wrapper-1::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 61%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid #53d824;
+  pointer-events: none;
+}
+
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  caret-color: #ECECEC;
+  border: 2px solid #53d824;
+  -webkit-text-fill-color: #ECECEC;
+  -webkit-box-shadow: 0 0 0px 100px #151515 inset;
+}
+
+.custom-toast {
+  font-family: "Gilroy-Light", sans-serif;
+}
+
+
+.input-box:focus,
+.input-box:active {
+  background-color: #151515;
+  border-color: #53d824;
+  outline: none;
+}
+
+
+.reference-text {
+  font-family: "Gilroy-Medium", sans-serif;
+  color: #ECECEC;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 10px;
+  margin-top: 20px;
+}
+
+.inputs-box-line {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  width: 100%;
+}
+
+.input-box-1 {
+  margin-top: 10px;
+  width: 100%;
+  text-align: center;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 16px;
+  background-color: #151515;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 5px;
+  color: #ECECEC;
+  outline: none;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+.input-box-2 {
+  margin-top: 10px;
+  width: 100%;
+  text-align: center;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 16px;
+  background-color: #151515;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 5px;
+  color: #ECECEC;
+  outline: none;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+
+
+.circle-container {
+  display: flex;
+  height: calc(100vh - 130px);
+  justify-content: center;
+  align-items: center;
+  margin-top: 50px;
+}
+
+.circle {
+  --orbit-radius: 200px;
+  /* half of circle width by default (400px / 2) */
+  width: 400px;
+  height: 400px;
+  border: 10px solid #53d824;
+  border-radius: 50%;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 0 20px rgba(83, 216, 36, 0.8);
+}
+
+.circle-animation {
+  box-shadow: inset 0 0 20px rgba(83, 216, 36, 0.8);
+  animation: glowing 1.2s ease-in-out infinite;
+}
+
+@keyframes glowing {
+  0% {
+    box-shadow: 0 0 20px rgba(83, 216, 36, 0.8);
+  }
+
+  50% {
+    box-shadow: 0 0 60px rgba(83, 216, 36, 1);
+  }
+
+  100% {
+    box-shadow: 0 0 20px rgba(83, 216, 36, 0.8);
+  }
+}
+
+.circle::before {
+  content: "";
+  position: absolute;
+  top: -45px;
+  left: 50%;
+  transform: translateX(-55%);
+  width: 0;
+  height: 0;
+  border-left: 15px solid transparent;
+  border-right: 15px solid transparent;
+  border-top: 20px solid #53d824;
+}
+
+.progress-circle-static {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  background-color: #ECECEC;
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(83, 216, 36, 0.8);
+  top: 0;
+  left: 50%;
+  margin-top: -20px;
+  margin-left: -20px;
+}
+
+.progress-circle-rotating {
+  position: absolute;
+  width: 38px;
+  height: 38px;
+  background-color: #ECECEC;
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(83, 216, 36, 0.8);
+  top: 50%;
+  left: 50%;
+  margin-top: -19px;
+  margin-left: -19px;
+  animation: orbit 3s linear infinite;
+}
+
+/* Orbit animation uses variable radius */
+@keyframes orbit {
+  0% {
+    transform: rotate(-90deg) translateX(var(--orbit-radius)) rotate(-90deg);
+  }
+
+  100% {
+    transform: rotate(270deg) translateX(var(--orbit-radius)) rotate(0deg);
+  }
+}
+
+.reference-text {
+  font-family: "Gilroy-Medium", sans-serif;
+  color: #ECECEC;
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.breathing-image {
+  width: 300px;
+  margin-left: 50px;
+  height: 180px;
+  animation: breathing 3s infinite ease-in-out;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  /* Smooth transition */
+}
+
+@keyframes breathing {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+.circle-buttons {
+  position: absolute;
+  top: 25px;
+  left: 30px;
+  width: 80px;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 20px;
+  transition: all 0.5s ease-in-out;
+  /* Add transition for animatable properties */
+}
+
+.circle-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: #151515;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  padding: 0;
+  box-sizing: border-box;
+  transition: transform 0.3s, background-color 0.3s, box-shadow 0.3s, opacity 0.5s ease-out;
+}
+
+.circle-btn.fade-out {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+
+.circle-btn:hover {
+  /* Keeps the hovered button size */
+  background-color: #1e1e1e;
+  /* Slightly lighter shade on hover */
+  z-index: 1;
+  /* Ensures the hovered button is on top */
+  /* Enhances shadow on hover */
+}
+
+
+
+
+.disabled-tab {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+.text-container {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+/* Main tooltip styling */
+.tooltip-wrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+/* The actual tooltip */
+.tooltip {
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 14px;
+  visibility: hidden;
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: auto;
+  right: 110%;
+  /* Position to the left */
+  transform: translateY(-50%);
+  min-width: 200px;
+  background-color: #202020;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  opacity: 0;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+/* Adjust arrow for left tooltip */
+.tooltip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent #202020;
+}
+
+
+/* Show the tooltip when hovering over the input wrapper */
+.tooltip-wrapper:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Custom styling for different tooltip states */
+.tooltip.info {
+  background-color: #1a1a1a;
+}
+
+.tooltip.info::after {
+  top: 50%;
+  left: 102%;
+  /* Place arrow on the right side of tooltip */
+  margin-left: 0;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent #53d824;
+}
+
+
+
+.nav-tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.nav-tooltip {
+  font-family: "Gilroy-Medium", sans-serif;
+  font-weight: bold;
+  font-size: 12px;
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  top: 50%;
+  left: 85%;
+  /* Position to the right of the icon */
+  transform: translateY(-50%);
+  width: 120px;
+  white-space: normal;
+  word-wrap: break-word;
+  text-align: center;
+  background-color: #53d824;
+  color: #151515;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: opacity 0.3s, visibility 0.3s;
+  z-index: 10;
+}
+
+.nav-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 100%;
+  /* Point the arrow to the left side */
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #53d824 transparent transparent;
+}
+
+.nav-tooltip-wrapper:hover .nav-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+
+
+@media screen and (max-width: 900px) {
+  .circle-container {
+    margin-top: 10%;
+  }
+
+  .circle {
+    width: 38vw;
+    height: 38vw;
+    --orbit-radius: calc(19vw);
+    /* half of circle width */
+  }
+
+  .left-part-animation {
+    position: relative;
+    margin-left: -28%;
+    margin-top: 40px;
+    width: 100%;
+    height: 200px;
+    margin-bottom: 10%;
+    /* Adjust size on smaller screens */
+  }
+
+  .input-form {
+    width: 60% !important;
+  }
+
+  .circle-buttons {
+    flex-direction: column !important;
+    /* force horizontal layout */
+    justify-content: center;
+    align-items: center;
+    width: 100% !important;
+    /* override width */
+    position: relative !important;
+    /* cancel absolute positioning */
+    top: -40% !important;
+    left: 7% !important;
+
+  }
+
+  @media screen and (max-width: 768px) {
+
+    .tooltip {
+      top: auto;
+      bottom: 100%;
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+    }
+
+    .tooltip::after {
+      top: 100%;
+      left: 50%;
+      margin-top: 0;
+      margin-left: -5px;
+      border-color: #202020 transparent transparent transparent;
+    }
+
+    .tooltip.info::after {
+      border-color: #53d824 transparent transparent transparent;
+    }
+  }
+
+  .container-audio {
+    display: block;
+  }
+
+  .upload-line {
+    width: 100%;
+  }
+
+  .nav-tooltip-wrapper.disabled-tab {
+    display: none;
+  }
+
+  .circle {
+    height: 40vw;
+    width: 40vw;
+  }
+
+  .breathing-image {
+    height: 40%;
+    margin-left: 6vw;
+  }
+
+  .nav-tooltip-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 80px;
+
+  }
+
+}
+
+
+/* ==========================================================================
+   Audio Capture Studio shell - AudioDataCollection.jsx only.
+
+   Every selector below is scoped under .adc-root, which is rendered by
+   AudioDataCollection.jsx and by nothing else, so none of these rules can
+   reach the Vision page or any other screen. Keep it that way: never add an
+   unscoped selector to this section, and never reference .vdc-* here.
+   ========================================================================== */
+.adc-root {
+  --adc-bg: #151515;
+  --adc-surface: #1a1a1a;
+  --adc-surface-2: #202020;
+  --adc-line: #2c2c2c;
+  --adc-accent: #53d824;
+  --adc-text: #ECECEC;
+  --adc-muted: rgba(236, 236, 236, 0.55);
+  --adc-faint: rgba(236, 236, 236, 0.3);
+  /* Measured at runtime by AudioDataCollection.jsx from the real .navbar /
+     .footer boxes; these fallbacks are their current heights. */
+  --adc-nav-h: 82px;
+  --adc-footer-h: 52px;
+  /* Pinned between the static navbar and the fixed footer rather than given an
+     in-flow height. Two things made the in-flow version lose its bottom edge:
+     html and body are overflow:hidden (body.css), so the document can never
+     scroll and anything past the fold is unreachable rather than merely
+     off-screen; and body's own height is declared twice - 90% in body.css,
+     100% in footer.css - so how much of the viewport the flow may even use
+     depends on stylesheet order. The old `height: calc(100vh - 130px)` assumed
+     a chrome height that matched neither reliably, and the overshoot took the
+     Input Device / Sample Rate row and the lower form with it.
+     A fixed box answers both: it is not clipped by an ancestor's overflow and
+     it ignores body's height entirely, so the page occupies exactly the gap
+     between the two chrome bars at any window size and scrolls inside it.
+     --adc-footer-h already covers .footer-color-boxes, which pokes out above
+     the footer's own box; the 4px is just breathing room. */
+  position: fixed;
+  top: var(--adc-nav-h);
+  left: 0;
+  right: 0;
+  bottom: calc(var(--adc-footer-h) + 4px);
+  background-color: var(--adc-bg);
+  color: var(--adc-text);
+  font-family: "Gilroy-Medium", sans-serif;
+  /* This element is the page's scroll container and must stay one at every
+     breakpoint. The form panel has to stay overflow:visible so a field tooltip
+     can sit to the left of its input instead of being clipped at the panel
+     edge, which is why the scroll lives out here. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  /* scroll still works (wheel / keys / touch), the bar itself is hidden */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.adc-root::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.adc-root *,
+.adc-root *::before,
+.adc-root *::after { box-sizing: border-box; }
+
+.adc-root .adc-shell {
+  /* min-height, not height: fills the viewport when the content is short and
+     grows past it when it is not, so .adc-root can scroll to reach the form */
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px 22px;
+}
+
+/* ---------- mode rail ---------- */
+.adc-root .adc-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 10px;
+  background-color: var(--adc-surface);
+  border: 1px solid var(--adc-line);
+  border-radius: 14px;
+}
+.adc-root .adc-rail-mark {
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background-color: var(--adc-accent);
+  box-shadow: 0 0 12px rgba(83, 216, 36, 0.6);
+  margin-bottom: 4px;
+  flex: 0 0 auto;
+}
+/* Plain icon buttons - no plate, no shadow. Every icon is boxed to the
+   same 30px square so the three graphics line up exactly. */
+.adc-root .adc-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.25s ease;
+}
+.adc-root .adc-tile > *:not(.nav-tooltip) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.adc-root .adc-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.adc-root .adc-nav-label {
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  text-align: center;
+  color: var(--adc-muted);
+  transition: color 0.25s ease;
+}
+.adc-root .adc-nav-item.is-current .adc-nav-label { color: var(--adc-accent); }
+.adc-root .adc-nav-item.is-locked .adc-nav-label { opacity: 0.55; }
+.adc-root .adc-nav-item:hover .adc-nav-label { color: var(--adc-text); }
+.adc-root .adc-nav-item.is-locked:hover .adc-nav-label { color: var(--adc-muted); }
+.adc-root .adc-tile img {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  object-fit: contain;
+  pointer-events: none;
+}
+.adc-root .adc-tile:hover { opacity: 1; }
+.adc-root .adc-tile.is-current { opacity: 1; }
+.adc-root .adc-tile.is-locked { opacity: 0.3; }
+.adc-root .adc-tile.is-locked:hover { opacity: 0.45; }
+.adc-root .adc-tile .nav-tooltip { left: 78%; }
+
+/* ---------- stage ---------- */
+.adc-root .adc-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 24px 16px;
+  border: 1px solid var(--adc-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.adc-root .adc-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.adc-root .adc-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 auto;
+}
+.adc-root .adc-eyebrow {
+  margin: 0 0 7px;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--adc-accent);
+}
+.adc-root .adc-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: normal;
+  letter-spacing: 0.01em;
+}
+.adc-root .adc-sub {
+  margin: 7px 0 0;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--adc-muted);
+}
+.adc-root .adc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 7px 13px;
+  border: 1px solid var(--adc-line);
+  border-radius: 999px;
+  background-color: var(--adc-bg);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--adc-muted);
+  white-space: nowrap;
+}
+.adc-root .adc-chip .adc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--adc-muted);
+}
+.adc-root .adc-chip.is-live {
+  color: var(--adc-accent);
+  border-color: rgba(83, 216, 36, 0.45);
+}
+.adc-root .adc-chip.is-live .adc-dot {
+  background-color: var(--adc-accent);
+  box-shadow: 0 0 10px rgba(83, 216, 36, 0.9);
+  animation: adc-pulse 1.2s ease-in-out infinite;
+}
+@keyframes adc-pulse { 50% { opacity: 0.3; } }
+
+.adc-root .adc-dial-zone {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0 4px;
+}
+.adc-root .circle {
+  /* every cap below is the previous dial size less 10% */
+  --adc-dial: min(515px, 56.7vh, 38.7vw);
+  width: var(--adc-dial);
+  height: var(--adc-dial);
+  border-width: 8px;
+  --orbit-radius: calc((var(--adc-dial) - 16px) / 2);
+  flex: 0 0 auto;
+  box-shadow: none;
+}
+/* flat ring - no inner or outer glow; recording state is shown by a
+   subtle border pulse instead */
+.adc-root .circle.circle-animation {
+  box-shadow: none;
+  animation: adc-ring 1.2s ease-in-out infinite;
+}
+@keyframes adc-ring {
+  50% { border-color: rgba(83, 216, 36, 0.45); }
+}
+.adc-root .progress-circle-static,
+.adc-root .progress-circle-rotating {
+  box-shadow: none;
+}
+.adc-root .breathing-image {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  margin: auto;
+  width: 82%;
+  height: 62%;
+  object-fit: contain;
+}
+.adc-root .text-container {
+  width: 100%;
+  height: auto;
+  gap: 4px;
+  padding: 0 12%;
+}
+.adc-root .reference-text {
+  margin: 0;
+  font-size: clamp(14px, 1.35vw, 21px);
+  line-height: 1.4;
+}
+
+.adc-root .adc-meta {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--adc-line);
+  position: relative;
+}
+.adc-root .adc-meta-k {
+  margin: 0 0 5px;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--adc-muted);
+}
+.adc-root .adc-meta-v {
+  margin: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- form panel ---------- */
+.adc-root .adc-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 22px 24px 20px;
+  background-color: #151515;
+  border: 1px solid var(--adc-line);
+  border-radius: 16px;
+  /* must not clip - the field tooltips hang off the left edge */
+  overflow: visible;
+}
+.adc-root .adc-panel-head {
+  flex: 0 0 auto;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--adc-line);
+}
+.adc-root .adc-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px 14px;
+  padding: 20px 0 0;
+  flex: 0 0 auto;
+}
+.adc-root .adc-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.adc-root .adc-field.is-full { grid-column: 1 / -1; }
+.adc-root .adc-label {
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--adc-muted);
+}
+.adc-root .adc-input,
+.adc-root .adc-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  background-color: var(--adc-surface);
+  border: 1px solid #54d82452;
+  border-radius: 10px;
+  color: var(--adc-text);
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 14px;
+  text-align: left;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.adc-root .adc-input::placeholder { color: var(--adc-faint); }
+.adc-root .adc-input:hover:not(:disabled),
+.adc-root .adc-select:hover { border-color: rgba(83, 216, 36, 0.5); }
+.adc-root .adc-input:focus,
+.adc-root .adc-select:focus {
+  border-color: var(--adc-accent);
+  box-shadow: none;
+  outline: none;
+}
+.adc-root .adc-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.adc-root .adc-input[type="number"]::-webkit-outer-spin-button,
+.adc-root .adc-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+/* ---- CustomDropdown (same component the Flasher uses) ---- */
+.adc-root .adc-dd-slot { outline: none; }
+.adc-root .dd { position: relative; width: 100%; }
+.adc-root .dd-trigger {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 14px;
+  background-color: var(--adc-bg);
+  border: 1px solid var(--adc-line);
+  border-radius: 10px;
+  color: var(--adc-text);
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.adc-root .dd-trigger:hover { border-color: rgba(83, 216, 36, 0.5); }
+.adc-root .dd.open .dd-trigger {
+  border-color: var(--adc-accent);
+  box-shadow: none;
+}
+.adc-root .dd-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.adc-root .dd-placeholder .dd-value { color: var(--adc-faint); }
+.adc-root .dd-arrow {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--adc-accent);
+  transition: transform 0.25s ease;
+}
+.adc-root .dd.open .dd-arrow { transform: rotate(180deg); }
+.adc-root .dd-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 5px;
+  background-color: var(--adc-surface);
+  border: 1px solid var(--adc-line);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+  transform-origin: top center;
+  opacity: 0;
+  transform: translateY(-6px) scaleY(0.96);
+  pointer-events: none;
+  transition: opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.adc-root .dd.open .dd-panel {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+  pointer-events: auto;
+}
+.adc-root .dd-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 13.5px;
+  color: rgba(236, 236, 236, 0.8);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.adc-root .dd.open .dd-option {
+  animation: adc-dd-item 0.28s ease both;
+  animation-delay: calc(var(--i) * 0.04s + 0.05s);
+}
+.adc-root .dd-option-label { flex: 1 1 auto; }
+.adc-root .dd-option.selected { color: var(--adc-accent); }
+.adc-root .dd-option.active:not(.is-disabled) {
+  background: rgba(83, 216, 36, 0.16);
+  color: var(--adc-text);
+}
+.adc-root .dd-option.is-disabled {
+  background: transparent;
+  color: var(--adc-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.adc-root .dd-disabled { opacity: 0.6; pointer-events: none; }
+@keyframes adc-dd-item {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Tooltip: the original .tooltip.info bubble - #1a1a1a card, 14px Gilroy,
+   sitting to the LEFT of the input with the accent arrow on its right edge
+   pointing back at the field.
+   The input is 44px tall and is the last thing in the field, so bottom:22px
+   puts the bubble's baseline on the input's centre line and translateY(50%)
+   centres the bubble on it - that keeps the arrow on the input rather than
+   drifting up towards the label. */
+.adc-root .adc-tip {
+  position: absolute;
+  right: calc(100% + 7px);
+  bottom: 22px;
+  transform: translateY(50%);
+  z-index: 6;
+  min-width: 200px;
+  max-width: 100%;
+  padding: 8px;
+  background-color: #1a1a1a;
+  border-radius: 6px;
+  color: #fff;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  pointer-events: none;
+}
+.adc-root .adc-tip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--adc-accent);
+}
+/* hover only - :focus-within would keep the bubble up for as long as the
+   field held the caret, so it stayed on screen after a click */
+.adc-root .adc-field:hover > .adc-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.adc-root .adc-actions {
+  margin-top: auto;
+  padding-top: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  flex: 0 0 auto;
+  /* nudged up by 2% of the panel height - relative offset so the layout
+     around it (and the hint below) is untouched */
+  position: relative;
+  bottom: 2%;
+}
+.adc-root .adc-actions button,
+.adc-root .adc-actions .recording-button {
+  min-width: 190px !important;
+  max-width: 100% !important;
+  height: 48px !important;
+  margin: 0 !important;
+  padding: 0 18px !important;
+  background-color: var(--adc-accent) !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 30px !important;
+  color: #101010 !important;
+  font-family: "Gilroy-Medium", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+.adc-root .adc-actions button *,
+.adc-root .adc-actions .recording-button * { color: inherit !important; }
+/* keeps the look correct whether the shared Button renders the
+   element itself or wraps it */
+.adc-root .adc-actions .recording-button button {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+/* Button.css lifts the shared .button with translateY(-2px) on hover, which
+   read as a jump here - swap it for a plain scale, plus a press-in on click.
+   Scoped to .adc-root so other pages keep their own hover. */
+.adc-root .adc-actions button:hover:not(:disabled),
+.adc-root .adc-actions button.hovered:not(:disabled),
+.adc-root .adc-actions .recording-button:hover {
+  filter: none;
+  box-shadow: none;
+  transform: scale(1.04) !important;
+}
+.adc-root .adc-actions button:active:not(:disabled),
+.adc-root .adc-actions .recording-button:active {
+  transform: scale(0.97) !important;
+  box-shadow: none;
+}
+/* .clicked lingers for 1s after the press - keep it flat, not lifted */
+.adc-root .adc-actions button.clicked,
+.adc-root .adc-actions .recording-button.clicked {
+  transform: none !important;
+  box-shadow: none;
+}
+.adc-root .adc-actions button:disabled,
+.adc-root .adc-actions .recording-button:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.adc-root .adc-hint {
+  margin: 0;
+  align-self: stretch;
+  text-align: center;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--adc-muted);
+}
+
+/* ==========================================================================
+   Responsive.
+
+   One rule governs every block below: .adc-root stays pinned between the
+   navbar and the footer and keeps scrolling. Letting it grow in the document
+   looks like it should work, but the document cannot scroll (html/body are
+   overflow:hidden) and body is only 90% tall, so anything past ~81vh becomes
+   unreachable and the form silently disappears. The shell grows instead and
+   the root scrolls.
+
+   The ladder: 3 panes -> 2 panes with the stage over the panel -> a single
+   column with the rail lying down on top.
+   ========================================================================== */
+
+/* laptops - keep the three panes, tighten the chrome so the form keeps its
+   full two-column width */
+@media screen and (max-width: 1280px) {
+  .adc-root .adc-shell {
+    grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px 16px;
+  }
+  .adc-root .adc-stage { padding: 18px 18px 14px; }
+  .adc-root .adc-panel { padding: 18px 18px 16px; }
+  .adc-root .adc-form { gap: 15px 12px; }
+  .adc-root .circle { --adc-dial: min(437px, 48.6vh, 38.7vw); }
+}
+
+/* short laptops - height is the scarce axis here, so the dial gives way
+   rather than the form scrolling out of sight */
+@media screen and (min-width: 1025px) and (max-height: 760px) {
+  .adc-root .adc-dial-zone { padding: 6px 0 2px; }
+  .adc-root .circle { --adc-dial: min(360px, 42.3vh, 33.3vw); }
+}
+
+/* tablet landscape - the two panes stack, the rail keeps its own column */
+@media screen and (max-width: 1024px) {
+  .adc-root .adc-shell {
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-content: start;
+  }
+  .adc-root .adc-rail {
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+  .adc-root .adc-dial-zone { padding: 16px 0 8px; }
+  .adc-root .circle { --adc-dial: min(386px, 51.3vw); }
+
+  /* the panel spans the width now, so there is nothing to its left - the
+     bubble goes back above the field with the arrow pointing down */
+  .adc-root .adc-tip {
+    right: auto;
+    left: 50%;
+    bottom: calc(98% + 7px);
+    transform: translateX(-50%);
+  }
+  .adc-root .adc-tip::after {
+    top: 100%;
+    left: 50%;
+    margin-top: 0;
+    margin-left: -5px;
+    border-color: var(--adc-accent) transparent transparent transparent;
+  }
+}
+
+/* tablet portrait and large phones - single column, rail lies down on top */
+@media screen and (max-width: 760px) {
+  .adc-root .adc-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .adc-root .adc-rail {
+    grid-row: auto;
+    flex-direction: row;
+    justify-content: center;
+    gap: 24px;
+    padding: 10px;
+  }
+  .adc-root .adc-rail-mark { display: none; }
+  .adc-root .adc-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .adc-root .adc-stage,
+  .adc-root .adc-panel { padding: 18px 16px 16px; }
+  .adc-root .adc-form { grid-template-columns: minmax(0, 1fr); }
+  .adc-root .adc-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adc-root .circle { --adc-dial: min(360px, 72vw); }
+}
+
+/* phones - the bubble is as wide as the field, the button spans the panel */
+@media screen and (max-width: 460px) {
+  .adc-root .adc-shell {
+    gap: 10px;
+    padding: 10px;
+  }
+  .adc-root .adc-stage,
+  .adc-root .adc-panel { padding: 16px 13px 14px; }
+  .adc-root .adc-title { font-size: 17px; }
+  .adc-root .adc-meta {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .adc-root .circle { --adc-dial: min(296px, 82vw); }
+  .adc-root .adc-tip {
+    min-width: 0;
+    width: 100%;
+    font-size: 13px;
+  }
+  .adc-root .adc-actions button,
+  .adc-root .adc-actions .recording-button { min-width: 100% !important; }
+}

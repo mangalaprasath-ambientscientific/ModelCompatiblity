@@ -1,0 +1,86 @@
+/* General container styling */
+.slider-show {
+    background-color: #151515;
+    height: calc(100vh - 130px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* Swiper slide styling */
+.slide {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    font-family: Arial, var(--es-fallback);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    /* Smooth transition for scale and opacity */
+}
+
+/* Set the image size */
+.slide img {
+    max-width: 50%;
+    max-height: 50%;
+    margin-top: 60px;
+    border-radius: 20px;
+    margin-bottom: 80px;
+    transition: transform 0.3s ease;
+    /* Smooth zoom effect */
+}
+
+/* Set the heading size */
+.slide h2 {
+    font-size: 1rem;
+    margin-top: 10px;
+}
+
+/* Active slide styling */
+.swiper-slide-active .slide {
+    transform: scale(1);
+    /* Active slide stays at full size */
+    opacity: 1;
+    /* Full opacity for active slide */
+}
+
+
+/* Pagination bullet styling */
+.swiper-pagination-bullet {
+    margin-top: 50px;
+    background-color: #53d824;
+}
+
+/* Zoom effect on hover */
+.slide img:hover {
+    transform: scale(1.1);
+    /* Scale the image to 110% */
+    box-shadow: 0 0 10px 5px #53d824;
+    /* Green glow effect */
+}
+
+/* Media query for small screens */
+@media screen and (max-width: 768px) {
+
+    /* Keep images large on small screens */
+    .slide img {
+        max-width: 80%;
+        /* Allow images to take more width */
+        max-height: auto;
+        /* Adjust height to maintain aspect ratio */
+    }
+
+    /* Adjust font size for better readability */
+    .slide h2 {
+        font-size: 1.2rem;
+    }
+
+    /* Adjust container alignment for small screens */
+    .slider-show {
+        padding: 20px;
+        /* Add padding for smaller screens */
+    }
+}

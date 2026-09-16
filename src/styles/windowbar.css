@@ -1,0 +1,75 @@
+.window-bar {
+  height: 42px;
+  background-color: #505050;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid #1e1e1e;
+  color: white;
+  font-family: "Gilroy-Medium", sans-serif;
+  position: relative;
+  -webkit-app-region: drag;
+}
+
+/* TITLE CENTER */
+.title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
+  color: #ececec;
+}
+
+/* LEFT CONTROLS */
+.left-controls {
+  display: flex;
+  align-items: center;
+}
+
+/* RIGHT CONTROLS */
+.window-buttons {
+  display: flex;
+  align-items: center;
+}
+
+/* ALL BUTTONS SAME STYLE */
+.left-controls button,
+.window-buttons button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 30px;
+  font-size: 17px;
+  background: #505050;
+  color: #ececec;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+/* HOVER EFFECT */
+.left-controls button:hover,
+.window-buttons button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* CLICK EFFECT */
+
+.left-controls button:active,
+.window-buttons button:active {
+  transform: scale(0.90);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* CLOSE BUTTON SPECIAL */
+.close-btn:hover {
+  color: white;
+}
+
+.close-btn:active {
+  transform: scale(0.88);
+}

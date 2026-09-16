@@ -1,0 +1,1111 @@
+.select-wrapper-video {
+  position: relative;
+  margin-right: 70%;
+  width: 100%;
+}
+ 
+.container{
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: calc(100vh - 130px);
+  background-color: #151515;
+  -ms-overflow-style: none;
+  scrollbar-width: none;    
+}
+ 
+.container::-webkit-scrollbar {
+  display: none;
+}
+ 
+ 
+.input-form-video {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+ 
+.select-wrapper-video::before {
+  content: "";
+  position: absolute;
+  right: -230%;
+  top: 61%;
+  transform: translateY(-65%);
+  width: 32px;
+  height: 80%;
+  background: #2c2c2c;
+  border-radius: 6px;
+  pointer-events: none;
+}
+ 
+.select-wrapper-video::after {
+  content: "";
+  position: absolute;
+  right: -225%;
+  top: 57%;
+  transform: translateY(-65%);
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 12px solid #53d824;
+  pointer-events: none;
+}
+ 
+.input-box-video {
+  width: 160%;
+  text-align: center;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 16px;
+  background-color: #151515 !important;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 10px;
+  color: #ECECEC !important;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+ 
+.input-box-video-dropdown {
+  width: 333%;
+  text-align: center;
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 16px;
+  background-color: #151515 !important;
+  padding: 10px;
+  border: 2px solid #53d824;
+  border-radius: 10px;
+  color: #ECECEC !important;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+}
+ 
+ 
+.streaming-container {
+  display: flex;
+  margin-left: 100px;
+  margin-top: 60px;
+  height: 100%;
+  justify-content: center;
+  flex-direction: column;
+  /* Stack children vertically */
+  align-items: center;
+  /* Center content horizontally */
+ 
+}
+ 
+.Streaming-video {
+ 
+  position: relative;
+  /* Ensure positioning for the pseudo-element */
+  display: inline-block;
+  /* Ensure it doesn't stretch unnecessarily */
+  width: 324px;
+  height: 324px;
+  margin: 5px;
+  padding: 10px;
+  border: 3px solid #53d824;
+  border-radius: 30px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+ 
+.custom-toast {
+  font-family: "Gilroy-Light", var(--es-fallback);
+  /* Optional: Custom font */
+}
+ 
+.video {
+  border-radius: 24px;
+  width: 104%;
+  height: 104%;
+  /* Ensure video fills the container */
+  background-color: black;
+  object-fit: cover;
+  /* Ensure the video scales properly */
+}
+ 
+.default-image {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+}
+ 
+ 
+ 
+.default-image {
+  object-fit: cover;
+  height: 100px;
+  width: 100px;
+}
+ 
+.capture-container {
+  margin-top: 18px;
+  text-align: center;
+}
+ 
+.capture-button {
+  top: 20px;
+  background-color: #53d824;
+  background: url('../../public/assets/shutter.png');
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  width: 100px;
+  height: 54px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  border: 2.5px solid #53D824;
+  border-radius: 10px;
+}
+ 
+.capture-button:hover {
+  background-color: #45b71b;
+}
+ 
+.capture-message {
+  margin-top: 20px;
+  font-size: 16px;
+  height: 20px;
+  color: #ECECEC;
+  font-family: 'Gilroy-Medium', var(--es-fallback);
+ 
+}
+ 
+ 
+@keyframes flash {
+  0% {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+ 
+  50% {
+    background-color: rgba(255, 255, 255, 0.4);
+  }
+ 
+  100% {
+    background-color: transparent;
+  }
+}
+ 
+.Streaming-video.flash-effect::after {
+  content: "";
+  position: absolute;
+  border-radius: 30px;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.8);
+  animation: flash 0.3s ease-in-out;
+  pointer-events: none;
+  z-index: 1;
+}
+ 
+.video-text-container {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+ 
+/* Main tooltip styling */
+.video-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+ 
+/* The actual tooltip */
+.video-tooltip {
+  font-family: "Gilroy-Medium", var(--es-fallback);
+  font-size: 14px;
+  visibility: hidden;
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: auto;
+  right: 110%; /* Position to the left */
+  transform: translateY(-50%);
+  min-width: 200px;
+  background-color: #202020;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px;
+  opacity: 0;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+ 
+/* Adjust arrow for left tooltip */
+.video-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent #202020;
+}
+ 
+/* Show the tooltip when hovering over the wrapper */
+.video-tooltip-wrapper:hover .video-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+  
+/* Custom styling for different tooltip states */
+.video-tooltip.info {
+  background-color: #1a1a1a;
+}
+ 
+.video-tooltip.info::after {
+  top: 50%;
+  left: 102%;
+  margin-left: 0;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent #53d824;
+}
+ 
+.input-form, .input-form-video, .input-form-sensor {
+  width: 100%;
+  max-width: 400px;
+}
+ 
+@media screen and (max-width: 900px) {
+ 
+  .container {
+    display: block;
+    overflow: scroll;
+  }
+ 
+  .upload-text {
+    font-size: 20px;
+  }
+ 
+  .upload-line {
+    width: 100%;
+  }
+ 
+  .input-form-video {
+    width: 60%;
+  }
+ 
+ 
+  .streaming-container {
+    position: relative;
+    width: 100%;
+    margin-left: -5px;
+    height: 60vh;
+    margin-top: 15%;
+    right: 5px;
+  }
+ .Streaming-video{
+  height: 30vh;
+  width: 250px
+ }
+  .right-part {
+    margin-bottom: 40px;
+  }
+ 
+ 
+}
+ 
+  @media screen and (max-width: 900px) {
+ .video-tooltip::after  {
+    top: 100%;
+    left: 50%;
+    margin-top: 0;
+    margin-left: -5px;
+    border-color: #202020 transparent transparent transparent;
+  }
+ .video-tooltip{
+    top: auto;
+    bottom: 100%;
+    right: auto;
+    transform: translateX(-30%);
+  }
+
+.video-tooltip.info::after {
+    border-color: #53d824 transparent transparent transparent;
+  }
+}
+
+
+/* ==========================================================================
+   Vision Capture Studio shell - VideoDataCollection.jsx only.
+
+   Every selector below is scoped under .vdc-root, which is rendered by
+   VideoDataCollection.jsx and by nothing else, so none of these rules can
+   reach the Audio page or any other screen. Keep it that way: never add an
+   unscoped selector to this section, and never reference .adc-* here.
+   ========================================================================== */
+.vdc-root {
+  --vdc-bg: #151515;
+  --vdc-surface: #1a1a1a;
+  --vdc-surface-2: #202020;
+  --vdc-line: #2c2c2c;
+  --vdc-accent: #53d824;
+  --vdc-text: #ECECEC;
+  --vdc-muted: rgba(236, 236, 236, 0.55);
+  --vdc-faint: rgba(236, 236, 236, 0.3);
+  height: calc(100vh - 130px);
+  background-color: var(--vdc-bg);
+  color: var(--vdc-text);
+  font-family: "Gilroy-Medium", sans-serif;
+  /* html/body are overflow:hidden and the footer is fixed, so the document
+     never scrolls - this element is the page's scroll container and must stay
+     one at every breakpoint. The form panel has to stay overflow:visible so a
+     field tooltip can sit to the left of its input instead of being clipped at
+     the panel edge, which is why the scroll lives out here. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  /* thin and quiet, and only drawn when the content actually overflows - with
+     no bar at all there is nothing telling you the form continues below */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(83, 216, 36, 0.3) transparent;
+}
+.vdc-root::-webkit-scrollbar { width: 8px; }
+.vdc-root::-webkit-scrollbar-track { background: transparent; }
+.vdc-root::-webkit-scrollbar-thumb {
+  background: rgba(83, 216, 36, 0.28);
+  border-radius: 8px;
+}
+.vdc-root::-webkit-scrollbar-thumb:hover { background: rgba(83, 216, 36, 0.45); }
+.vdc-root *,
+.vdc-root *::before,
+.vdc-root *::after { box-sizing: border-box; }
+
+.vdc-root .vdc-shell {
+  /* min-height, not height: fills the viewport when the content is short and
+     grows past it when it is not, so .vdc-root can scroll to reach the form */
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px 22px;
+}
+
+/* ---------- mode rail ---------- */
+.vdc-root .vdc-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 10px;
+  background-color: var(--vdc-surface);
+  border: 1px solid var(--vdc-line);
+  border-radius: 14px;
+}
+.vdc-root .vdc-rail-mark {
+  width: 22px;
+  height: 3px;
+  border-radius: 2px;
+  background-color: var(--vdc-accent);
+  box-shadow: 0 0 12px rgba(83, 216, 36, 0.6);
+  margin-bottom: 4px;
+  flex: 0 0 auto;
+}
+/* Plain icon buttons - no plate, no shadow. Every icon is boxed to the
+   same 30px square so the three graphics line up exactly. */
+.vdc-root .vdc-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.25s ease;
+}
+.vdc-root .vdc-tile > *:not(.nav-tooltip) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.vdc-root .vdc-tile img {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  object-fit: contain;
+  pointer-events: none;
+}
+.vdc-root .vdc-tile:hover { opacity: 1; }
+.vdc-root .vdc-tile.is-current { opacity: 1; }
+.vdc-root .vdc-tile.is-locked { opacity: 0.3; }
+.vdc-root .vdc-tile.is-locked:hover { opacity: 0.45; }
+.vdc-root .vdc-tile .nav-tooltip { left: 78%; }
+.vdc-root .vdc-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.vdc-root .vdc-nav-label {
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1;
+  text-align: center;
+  color: var(--vdc-muted);
+  transition: color 0.25s ease;
+}
+.vdc-root .vdc-nav-item.is-current .vdc-nav-label { color: var(--vdc-accent); }
+.vdc-root .vdc-nav-item.is-locked .vdc-nav-label { opacity: 0.55; }
+.vdc-root .vdc-nav-item:hover .vdc-nav-label { color: var(--vdc-text); }
+.vdc-root .vdc-nav-item.is-locked:hover .vdc-nav-label { color: var(--vdc-muted); }
+
+/* ---------- stage ---------- */
+.vdc-root .vdc-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 20px 24px 16px;
+  background-color: #151515;
+  border: 1px solid var(--vdc-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.vdc-root .vdc-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.vdc-root .vdc-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex: 0 0 auto;
+}
+.vdc-root .vdc-eyebrow {
+  margin: 0 0 7px;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--vdc-accent);
+}
+.vdc-root .vdc-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: normal;
+  letter-spacing: 0.01em;
+}
+.vdc-root .vdc-sub {
+  margin: 7px 0 0;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--vdc-muted);
+}
+.vdc-root .vdc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 7px 13px;
+  border: 1px solid var(--vdc-line);
+  border-radius: 999px;
+  background-color: var(--vdc-bg);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--vdc-muted);
+  white-space: nowrap;
+}
+.vdc-root .vdc-chip .vdc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--vdc-muted);
+}
+.vdc-root .vdc-chip.is-live {
+  color: var(--vdc-accent);
+  border-color: rgba(83, 216, 36, 0.45);
+}
+.vdc-root .vdc-chip.is-live .vdc-dot {
+  background-color: var(--vdc-accent);
+  box-shadow: 0 0 10px rgba(83, 216, 36, 0.9);
+  animation: vdc-pulse 1.2s ease-in-out infinite;
+}
+@keyframes vdc-pulse { 50% { opacity: 0.3; } }
+
+/* ---------- preview + capture ---------- */
+.vdc-root .vdc-frame-zone {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 0 6px;
+}
+.vdc-root .Streaming-video {
+  --vdc-frame: min(374px, 44vh, 29vw);
+  width: var(--vdc-frame);
+  height: var(--vdc-frame);
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px;
+  border: 2px solid var(--vdc-accent);
+  border-radius: 20px;
+  background-color: var(--vdc-bg);
+  box-shadow: none;
+  overflow: hidden;
+}
+.vdc-root .Streaming-video.flash-effect::after { border-radius: 20px; }
+.vdc-root .video,
+.vdc-root .vdc-stream-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  object-fit: cover;
+  background-color: #000;
+}
+.vdc-root .default-image {
+  width: 52%;
+  height: 52%;
+  object-fit: contain;
+  opacity: 0.6;
+}
+.vdc-root .vdc-capture {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.vdc-root .capture-button {
+  margin: 0 !important;
+  width: 96px !important;
+  height: 50px !important;
+}
+.vdc-root .capture-message {
+  margin: 0;
+  min-height: 18px;
+  max-width: 100%;
+  padding: 0 8px;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 11.5px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--vdc-muted);
+  overflow-wrap: anywhere;
+}
+
+.vdc-root .vdc-meta {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--vdc-line);
+  position: relative;
+}
+.vdc-root .vdc-meta-k {
+  margin: 0 0 5px;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--vdc-muted);
+}
+.vdc-root .vdc-meta-v {
+  margin: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- form panel ---------- */
+.vdc-root .vdc-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 22px 24px 20px;
+  background-color: #151515;
+  border: 1px solid var(--vdc-line);
+  border-radius: 16px;
+  /* must not clip - the field tooltips hang off the left edge */
+  overflow: visible;
+}
+.vdc-root .vdc-panel-head {
+  flex: 0 0 auto;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--vdc-line);
+}
+.vdc-root .vdc-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px 14px;
+  padding: 20px 0 0;
+  flex: 0 0 auto;
+}
+.vdc-root .vdc-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.vdc-root .vdc-field.is-full { grid-column: 1 / -1; }
+.vdc-root .vdc-label {
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--vdc-muted);
+}
+.vdc-root .vdc-input,
+.vdc-root .vdc-select {
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  background-color: var(--vdc-surface);
+  border: 1px solid #54d82452;
+  border-radius: 10px;
+  color: var(--vdc-text) !important;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 14px;
+  text-align: left;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.vdc-root .vdc-input::placeholder { color: var(--vdc-faint); }
+.vdc-root .vdc-input:hover,
+.vdc-root .vdc-select:hover { border-color: rgba(83, 216, 36, 0.5); }
+.vdc-root .vdc-input:focus,
+.vdc-root .vdc-select:focus {
+  border-color: var(--vdc-accent);
+  box-shadow: none;
+  outline: none;
+}
+/* ---- CustomDropdown (same component the Flasher uses) ---- */
+.vdc-root .vdc-dd-slot { outline: none; }
+.vdc-root .dd { position: relative; width: 100%; }
+.vdc-root .dd-trigger {
+  width: 100%;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 14px;
+  background-color: var(--vdc-bg);
+  border: 1px solid var(--vdc-line);
+  border-radius: 10px;
+  color: var(--vdc-text);
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.vdc-root .dd-trigger:hover { border-color: rgba(83, 216, 36, 0.5); }
+.vdc-root .dd.open .dd-trigger {
+  border-color: var(--vdc-accent);
+  box-shadow: none;
+}
+.vdc-root .dd-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.vdc-root .dd-placeholder .dd-value { color: var(--vdc-faint); }
+.vdc-root .dd-arrow {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--vdc-accent);
+  transition: transform 0.25s ease;
+}
+.vdc-root .dd.open .dd-arrow { transform: rotate(180deg); }
+.vdc-root .dd-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  padding: 5px;
+  background-color: var(--vdc-surface);
+  border: 1px solid var(--vdc-line);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
+  transform-origin: top center;
+  opacity: 0;
+  transform: translateY(-6px) scaleY(0.96);
+  pointer-events: none;
+  transition: opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.vdc-root .dd.open .dd-panel {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+  pointer-events: auto;
+}
+.vdc-root .dd-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 13.5px;
+  color: rgba(236, 236, 236, 0.8);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.vdc-root .dd.open .dd-option {
+  animation: vdc-dd-item 0.28s ease both;
+  animation-delay: calc(var(--i) * 0.04s + 0.05s);
+}
+.vdc-root .dd-option-label { flex: 1 1 auto; }
+.vdc-root .dd-option.selected { color: var(--vdc-accent); }
+.vdc-root .dd-option.active:not(.is-disabled) {
+  background: rgba(83, 216, 36, 0.16);
+  color: var(--vdc-text);
+}
+.vdc-root .dd-option.is-disabled {
+  background: transparent;
+  color: var(--vdc-muted);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.vdc-root .dd-disabled { opacity: 0.6; pointer-events: none; }
+@keyframes vdc-dd-item {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Tooltip: the original .tooltip.info bubble - #1a1a1a card, 14px Gilroy,
+   sitting to the LEFT of the input with the accent arrow on its right edge
+   pointing back at the field.
+   The input is 44px tall and is the last thing in the field, so bottom:22px
+   puts the bubble's baseline on the input's centre line and translateY(50%)
+   centres the bubble on it - that keeps the arrow on the input rather than
+   drifting up towards the label. */
+.vdc-root .vdc-tip {
+  position: absolute;
+  right: calc(100% + 7px);
+  bottom: 22px;
+  transform: translateY(50%);
+  z-index: 6;
+  min-width: 200px;
+  max-width: 100%;
+  padding: 8px;
+  background-color: #1a1a1a;
+  border-radius: 6px;
+  color: #fff;
+  font-family: "Gilroy-Medium", sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+  pointer-events: none;
+}
+.vdc-root .vdc-tip::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-top: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent transparent var(--vdc-accent);
+}
+/* hover only - :focus-within would keep the bubble up for as long as the
+   field held the caret, so it stayed on screen after a click */
+.vdc-root .vdc-field:hover > .vdc-tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.vdc-root .vdc-steps {
+  margin: 22px 0 0;
+  padding: 16px 18px;
+  background-color: var(--vdc-bg);
+  border: 1px solid var(--vdc-line);
+  border-radius: 12px;
+}
+.vdc-root .vdc-steps ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vdc-root .vdc-steps-title {
+  margin: 0 0 12px;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--vdc-muted);
+}
+.vdc-root .vdc-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--vdc-text);
+}
+.vdc-root .vdc-steps li + li { margin-top: 9px; }
+.vdc-root .vdc-steps li span {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1px solid rgba(83, 216, 36, 0.45);
+  border-radius: 50%;
+  font-size: 9.5px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--vdc-accent);
+}
+
+.vdc-root .vdc-actions {
+  margin-top: auto;
+  padding-top: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  flex: 0 0 auto;
+  /* nudged up by 2% of the panel height, matching the audio page - relative
+     offset so the layout around it (and the hint below) is untouched */
+  position: relative;
+  bottom: 2%;
+}
+.vdc-root .vdc-actions button,
+.vdc-root .vdc-actions .recording-button {
+  min-width: 190px !important;
+  max-width: 100% !important;
+  height: 48px !important;
+  margin: 0 !important;
+  padding: 0 18px !important;
+  background-color: var(--vdc-accent) !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 30px !important;
+  color: #101010 !important;
+  font-family: "Gilroy-Medium", sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  cursor: pointer;
+  transition: transform 0.18s ease, filter 0.2s ease, box-shadow 0.2s ease;
+}
+.vdc-root .vdc-actions button *,
+.vdc-root .vdc-actions .recording-button * { color: inherit !important; }
+/* keeps the look correct whether the shared Button renders the
+   element itself or wraps it */
+.vdc-root .vdc-actions .recording-button button {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+/* Button.css lifts the shared .button with translateY(-2px) on hover, which
+   read as a jump - swap it for a plain scale, plus a press-in on click.
+   Scoped to .vdc-root so other pages keep their own hover. */
+.vdc-root .vdc-actions button:hover:not(:disabled),
+.vdc-root .vdc-actions button.hovered:not(:disabled),
+.vdc-root .vdc-actions .recording-button:hover {
+  filter: none;
+  box-shadow: none;
+  transform: scale(1.04) !important;
+}
+.vdc-root .vdc-actions button:active:not(:disabled),
+.vdc-root .vdc-actions .recording-button:active {
+  transform: scale(0.97) !important;
+  box-shadow: none;
+}
+/* .clicked lingers for 1s after the press - keep it flat, not lifted */
+.vdc-root .vdc-actions button.clicked,
+.vdc-root .vdc-actions .recording-button.clicked {
+  transform: none !important;
+  box-shadow: none;
+}
+.vdc-root .vdc-hint {
+  margin: 0;
+  align-self: stretch;
+  text-align: center;
+  font-family: "Gilroy-Light", sans-serif;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--vdc-muted);
+}
+
+/* ==========================================================================
+   Responsive.
+
+   One rule governs every block below: .vdc-root keeps a bounded height and
+   keeps scrolling. Giving it height:auto looks like it should work, but the
+   document cannot scroll (html/body are overflow:hidden), so anything past the
+   viewport becomes unreachable and the form silently disappears. The shell
+   grows instead and the root scrolls.
+
+   The ladder: 3 panes -> 2 panes with the stage over the panel -> a single
+   column with the rail lying down on top.
+   ========================================================================== */
+
+/* laptops - keep the three panes, tighten the chrome so the form keeps its
+   full two-column width */
+@media screen and (max-width: 1280px) {
+  .vdc-root .vdc-shell {
+    grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px 16px;
+  }
+  .vdc-root .vdc-stage { padding: 18px 18px 14px; }
+  .vdc-root .vdc-panel { padding: 18px 18px 16px; }
+  .vdc-root .vdc-form { gap: 15px 12px; }
+  .vdc-root .vdc-steps { margin-top: 18px; padding: 14px 16px; }
+  .vdc-root .Streaming-video { --vdc-frame: min(330px, 37vh, 31vw); }
+}
+
+/* short laptops - height is the scarce axis here, so the preview gives way
+   rather than the form scrolling out of sight */
+@media screen and (min-width: 1025px) and (max-height: 760px) {
+  .vdc-root .vdc-frame-zone {
+    gap: 12px;
+    padding: 8px 0 4px;
+  }
+  .vdc-root .Streaming-video { --vdc-frame: min(275px, 33vh, 26vw); }
+  .vdc-root .vdc-steps { margin-top: 16px; padding: 13px 16px; }
+}
+
+/* tablet landscape - the two panes stack, the rail keeps its own column */
+@media screen and (max-width: 1024px) {
+  .vdc-root .vdc-shell {
+    grid-template-columns: 72px minmax(0, 1fr);
+    align-content: start;
+  }
+  .vdc-root .vdc-rail {
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+  .vdc-root .vdc-frame-zone { padding: 14px 0 8px; }
+  .vdc-root .Streaming-video { --vdc-frame: min(330px, 44vw); }
+
+  /* the panel spans the width now, so there is nothing to its left - the
+     bubble goes back above the field with the arrow pointing down */
+  .vdc-root .vdc-tip {
+    right: auto;
+    left: 50%;
+    bottom: calc(98% + 7px);
+    transform: translateX(-50%);
+  }
+  .vdc-root .vdc-tip::after {
+    top: 100%;
+    left: 50%;
+    margin-top: 0;
+    margin-left: -5px;
+    border-color: var(--vdc-accent) transparent transparent transparent;
+  }
+}
+
+/* tablet portrait and large phones - single column, rail lies down on top */
+@media screen and (max-width: 760px) {
+  .vdc-root .vdc-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .vdc-root .vdc-rail {
+    grid-row: auto;
+    flex-direction: row;
+    justify-content: center;
+    gap: 24px;
+    padding: 10px;
+  }
+  .vdc-root .vdc-rail-mark { display: none; }
+  .vdc-root .vdc-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .vdc-root .vdc-stage,
+  .vdc-root .vdc-panel { padding: 18px 16px 16px; }
+  .vdc-root .vdc-form { grid-template-columns: minmax(0, 1fr); }
+  .vdc-root .vdc-meta { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vdc-root .Streaming-video { --vdc-frame: min(308px, 62vw); }
+}
+
+/* phones - the bubble is as wide as the field, the button spans the panel */
+@media screen and (max-width: 460px) {
+  .vdc-root .vdc-shell {
+    gap: 10px;
+    padding: 10px;
+  }
+  .vdc-root .vdc-stage,
+  .vdc-root .vdc-panel { padding: 16px 13px 14px; }
+  .vdc-root .vdc-title { font-size: 17px; }
+  .vdc-root .vdc-meta {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .vdc-root .vdc-steps { margin-top: 16px; padding: 13px 14px; }
+  .vdc-root .Streaming-video { --vdc-frame: min(253px, 70vw); }
+  .vdc-root .vdc-tip {
+    min-width: 0;
+    width: 100%;
+    font-size: 13px;
+  }
+  .vdc-root .vdc-actions button,
+  .vdc-root .vdc-actions .recording-button { min-width: 100% !important; }
+}
+ 

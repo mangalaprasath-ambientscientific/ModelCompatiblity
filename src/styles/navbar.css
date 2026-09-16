@@ -1,0 +1,492 @@
+/* Navbar Container */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #505050;
+  color: #ececec;
+  position: relative;
+  z-index: 999;
+}
+ 
+/* Menu Banner - Always in the flow but with 0 height when hidden */
+.menu-banner {
+  width: 100%;
+  height: 0;
+  font-family: 'Gilroy-Medium', sans-serif;
+  background-color: #F2F2F2;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
+  overflow: hidden;
+  transition: height 0.5s ease, opacity 0.5s ease;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+ 
+/* Show the banner when Menu is clicked */
+.menu-banner.show {
+  height: 100px;
+  opacity: 1;
+  pointer-events: all;
+  /* Re-enables interaction */
+}
+ 
+/* Wrapper for animation containment */
+.menu-items-wrapper {
+  display: flex;
+  width: 100%;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+ 
+ 
+/* Menu Items Container */
+.menu-items-container {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  transition: transform 0.3s ease-in-out;
+  will-change: transform;
+}
+ 
+.slide-left {
+  animation: slideLeft 0.3s ease-in-out;
+}
+ 
+.slide-right {
+  animation: slideRight 0.3s ease-in-out;
+}
+ 
+@keyframes slideLeft {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0.5;
+  }
+ 
+  100% {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+}
+ 
+@keyframes slideRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0.5;
+  }
+ 
+  100% {
+    transform: translateX(0%);
+    opacity: 1;
+  }
+}
+ 
+.menu-banner .compartment {
+  /* min-width: 20%; */
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #F2F2F2;
+  position: relative;
+  box-sizing: border-box;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
+  text-decoration: none;
+  transition: color 0.3s ease, font-size 0.3s ease;
+  padding: 1rem;
+}
+ 
+/* Compartment Hover Effect */
+.menu-banner .compartment:hover {
+  color: #52D723;
+  font-size: 1.2rem;
+}
+ 
+.menu-banner .compartment::before,
+.menu-banner .compartment::after {
+  content: "";
+  position: absolute;
+  top: 23%;
+  bottom: 23%;
+  left: 0;
+  right: 0;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+  z-index: 1;
+}
+ 
+/* Navigation Arrows */
+.nav-arrow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 100%;
+  background-color: rgba(242, 242, 242, 0.9);
+  color: #333;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease, transform 0.2s ease;
+  z-index: 2;
+}
+ 
+ 
+ 
+.nav-arrow:active {
+  transform: scale(0.95);
+}
+ 
+.nav-arrow:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+ 
+.left-arrow {
+  position: absolute;
+  left: 0;
+}
+ 
+.right-arrow {
+  position: absolute;
+  right: 0;
+}
+ 
+/* Logo Container */
+.navbar-logo a {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+ 
+/* @keyframes slideInMenuItem {
+  0% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+ 
+.menu-banner.show .menu-items-container .compartment {
+  animation: slideInMenuItem 0.4s ease forwards;
+  opacity: 0;
+}
+  */
+.menu-banner.show .menu-items-container .compartment:nth-child(1) {
+  animation-delay: 0.1s;
+}
+ 
+.menu-banner.show .menu-items-container .compartment:nth-child(2) {
+  animation-delay: 0.2s;
+}
+ 
+.menu-banner.show .menu-items-container .compartment:nth-child(3) {
+  animation-delay: 0.3s;
+}
+ 
+.menu-banner.show .menu-items-container .compartment:nth-child(4) {
+  animation-delay: 0.4s;
+}
+ 
+/* Add more if you have more compartments */
+ 
+.logo {
+  height: 50px;
+  width: auto;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+ 
+/* Logo Hover Effect */
+.navbar-logo a:hover .logo {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+ 
+/* Navbar Links Container */
+.navbar-links {
+  list-style: none;
+  display: flex;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+}
+ 
+/* Move "Menu" link to the left */
+.menu-item {
+  margin-left: -50px;
+}
+ 
+.navbar-links button {
+  color: white;
+  background: none;
+  border: none;
+  text-decoration: none;
+  font-family: 'Gilroy-Medium', sans-serif;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  transition: color 0.4s ease, transform 0.3s ease;
+  transform-origin: center;
+}
+ 
+/* Navbar Button Hover Effect */
+.navbar-links button:hover {
+  color: #52D723;
+  transform: scale(1.1);
+}
+ 
+/* Responsive Design */
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+  }
+ 
+  .navbar-links {
+    flex-direction: column;
+    gap: 1rem;
+  }
+ 
+  .navbar-logo {
+    margin-bottom: 1rem;
+  }
+ 
+  .menu-item {
+    margin-left: 0;
+  }
+ 
+  .nav-arrow {
+    width: 30px;
+  }
+}
+ 
+.menu-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+ 
+}
+ 
+.hamburger-icon {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 18px;
+  width: 24px;
+}
+ 
+.hamburger-icon span {
+  height: 3px;
+  background-color: #ffffff;
+  border-radius: 2px;
+  width: 100%;
+  transition: 0.3s ease;
+}
+ 
+.menu-text {
+  font-size: 16px;
+}
+ 
+@media (max-width: 920px) {
+  .menu-text {
+    display: none;
+  }
+ 
+  .hamburger-icon {
+    display: flex;
+  }
+ 
+  .menu-banner .compartment:hover {
+    color: #52D723;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+ 
+  .menu-banner {
+    flex-direction: column;
+    /* Stack items vertically */
+    position: absolute;
+    /* Position relative to .navbar */
+    right: 10px;
+    /* Align to right side */
+    top: 60px;
+    /* Below the navbar */
+    width: 200px;
+    /* Set to 30% width */
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    flex-direction: column;
+    pointer-events: none;
+    transition: max-height 0.4s ease, opacity 0.4s ease, transform 0.4s ease;
+ 
+    z-index: 999;
+    background-color: #F2F2F2;
+    border-radius: 7px;
+  }
+ 
+  .menu-banner.show {
+    height: auto;
+    max-height: 500px;
+    opacity: 1;
+    pointer-events: all;
+    display: flex;
+    flex-direction: column;
+  }
+ 
+  .menu-items-wrapper {
+    max-height: 300px;
+    overflow-y: auto;
+ 
+  }
+ 
+  .menu-items-container {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    gap: 1rem;
+    padding: 1rem;
+ 
+  }
+ 
+  .menu-banner .compartment {
+    width: 100%;
+    min-width: unset;
+    justify-content: flex-start;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #ddd;
+    border-bottom: none;
+    font-size: 1rem;
+  }
+ 
+  .menu-banner .compartment::before,
+  .menu-banner .compartment::after {
+    display: none;
+  }
+ 
+  .navbar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+ 
+/* =====================================================
+   CONFIRM / WARNING OVERLAY
+   ===================================================== */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+ 
+/* =====================================================
+   CONFIRM BOX
+   ===================================================== */
+.confirm-box {
+  background: #1f1f1f;
+  padding: 26px 28px;
+  border-radius: 18px;
+  width: 380px;
+  max-width: 90%;
+  text-align: center;
+  color: #ffffff;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+  animation: confirmFadeIn 0.25s ease-out;
+}
+ 
+/* Optional title styling if you have a heading */
+.confirm-box h3 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ececec;
+  /* warning emphasis */
+ 
+}
+ 
+/* Message text */
+.confirm-box p {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #d6d6d6;
+  margin: 0;
+}
+ 
+/* =====================================================
+   ACTION BUTTONS
+   ===================================================== */
+.confirm-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 60px;
+  margin-top: 24px;
+}
+ 
+.confirm-cancel,
+.confirm-ok {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+ 
+/* Cancel / Destructive */
+.confirm-cancel {
+  background: rgba(255, 0, 0, 0.715);
+  color: #fff;
+}
+ 
+.confirm-cancel:hover {
+  background: #cd0c0c;
+  transform: translateY(-1px);
+}
+ 
+/* OK / Confirm */
+.confirm-ok {
+  background: #53d824;
+  color: #102a00;
+}
+ 
+.confirm-ok:hover {
+  background: #46c21f;
+  transform: translateY(-1px);
+}
+ 
+/* =====================================================
+   ANIMATION
+   ===================================================== */
+@keyframes confirmFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
