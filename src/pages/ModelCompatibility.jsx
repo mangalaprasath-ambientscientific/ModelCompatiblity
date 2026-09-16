@@ -77,7 +77,18 @@ function readH5(arrayBuffer, filename) {
 
 /* The stored arrays, keyed by layer name:  { dense_1: [{ name, shape }, ...] }.
    load_model() assigns these into the variables the config just built, so a
-   config that was edited by hand no longer fits them - see weightError(). */
+   config that was edited by hand no longer fits them - see weightError().
+
+   keras does NOT walk the file.  load_weights_from_hdf5_group() reads the
+   `layer_names` attribute on /model_weights and, for each of those groups, the
+   `weight_names` attribute, and it ignores every group or dataset those two
+   lists do not mention.  Walking the tree instead made a leftover group, a
+   `top_level_model_weights` entry or a stray dataset look like a layer-count or
+   weight-count mismatch that keras never sees.
+
+   The per-layer arrays are kept in weight_names ORDER, because batch_set_value()
+   zips them against the layer's symbolic weights POSITIONALLY - it never matches
+   them up by name. */
 function readWeights(f) {
   const per = {};
   let root;
@@ -88,6 +99,20 @@ function readWeights(f) {
   }
   if (!root || !root.keys) return per;
 
+  const asList = (v) => {
+    if (v === null || v === undefined) return [];
+    return (Array.isArray(v) ? v : [v]).map((x) => String(x).replace(/\u0000/g, '').trim()).filter(Boolean);
+  };
+  const leaf = (p) => String(p).split('/').pop();
+  const record = (top, wname, node) => {
+    if (!node || node.shape === undefined || node.dtype === undefined) return;
+    (per[top] || (per[top] = [])).push({
+      name: String(wname).replace(/:\d+$/, ''),
+      shape: Array.prototype.slice.call(node.shape || []),
+    });
+  };
+
+  /* only used when layer_names is absent, e.g. a file written by hand */
   const walk = (node, top) => {
     for (const k of node.keys || []) {
       let child;
@@ -97,23 +122,47 @@ function readWeights(f) {
         continue;
       }
       if (!child) continue;
-      if (child.shape !== undefined && child.dtype !== undefined) {
-        (per[top] || (per[top] = [])).push({
-          name: String(k).replace(/:\d+$/, ''),
-          shape: Array.prototype.slice.call(child.shape || []),
-        });
-      } else if (child.keys) {
-        walk(child, top);
-      }
+      if (child.shape !== undefined && child.dtype !== undefined) record(top, k, child);
+      else if (child.keys) walk(child, top);
     }
   };
 
-  for (const layerName of root.keys) {
+  const declared = asList((root.attrs || {}).layer_names);
+  const names = declared.length
+    ? declared
+    : (root.keys || []).filter((k) => k !== 'top_level_model_weights');
+
+  for (const layerName of names) {
+    let g;
     try {
-      const g = root.get(layerName);
-      if (g && g.keys) walk(g, layerName);
+      g = root.get(layerName);
     } catch (e) {
-      /* an unreadable group just means no weight check for that layer */
+      continue; /* an unreadable group just means no weight check for that layer */
+    }
+    if (!g || !g.keys) continue;
+
+    const wnames = asList((g.attrs || {}).weight_names);
+    if (!wnames.length) {
+      /* keras' filtered_layer_names drops a group whose weight_names is empty */
+      if (declared.length) continue;
+      walk(g, layerName);
+      continue;
+    }
+    for (const wn of wnames) {
+      let d = null;
+      try {
+        d = g.get(wn);
+      } catch (e) {
+        d = null;
+      }
+      if (!d) {
+        try {
+          d = g.get(leaf(wn));
+        } catch (e) {
+          d = null;
+        }
+      }
+      record(layerName, leaf(wn), d);
     }
   }
   return per;
@@ -166,29 +215,21 @@ function loadFailureReason(parsed, err) {
 }
 
 /* ---------------------------------------------------------------------------
- * SERIALISATION GATE - a graph keras 2.15 cannot deserialise at all.
- * keras 3 renamed `batch_input_shape` to `batch_shape` and writes `dtype` as a
- * DTypePolicy object; that is a hard load failure whatever the model type, so
- * it is checked before the Sequential test just as load_model() ran first.
+ * THE SERIALISATION GATE IS GONE - it rejected models keras loads happily.
+ *
+ * It used to reject any file whose `keras_version` major was not 2.  That is not
+ * what the python does: the version attribute is read up front but only CONSULTED
+ * inside `if not load:`, so a graph keras 2.15 can deserialise reaches the layer
+ * report no matter what the attribute says.  A mislabelled file, or one written
+ * by 2.13, passed in python and was rejected here.
+ *
+ * It also substring-searched the whole config blob for `"batch_shape"` and
+ * `"DTypePolicy"`, which condemned any model or layer that merely happened to
+ * carry one of those names.  Both real cases are now caught structurally and for
+ * the right reason: `batch_shape` is an unrecognised InputLayer keyword
+ * (unknownKwargError), and a serialised DTypePolicy is an unusable `dtype`
+ * (unresolvableObject).
  * ------------------------------------------------------------------------ */
-function serialisationFailure(parsed) {
-  const { kerasVersion } = buildStack(parsed);
-  const major = parseInt(kerasVersion.split('.')[0], 10);
-
-  if (kerasVersion && !Number.isNaN(major) && major !== 2) {
-    return 'keras ' + kerasVersion + ' saved this graph in a format keras ' + SUPPORTED_KERAS + ' cannot deserialise';
-  }
-  let blob = '';
-  try {
-    blob = JSON.stringify(parsed.config);
-  } catch (e) {
-    return 'model_config could not be walked';
-  }
-  if (blob.indexOf('"batch_shape"') !== -1 || blob.indexOf('"DTypePolicy"') !== -1) {
-    return 'the graph uses keras 3 serialisation, which keras ' + SUPPORTED_KERAS + ' cannot deserialise';
-  }
-  return null;
-}
 
 /* ---------------------------------------------------------------------------
  * LAYER SETS - byte-for-byte the lists at the head of Model_Compatibility.py
@@ -663,6 +704,14 @@ function rawNum(rawCfg, key, fallback) {
 }
 
 function initError(cls, cfg, rawCfg) {
+  /* Layer.__init__ rejects an unknown keyword before it validates anything */
+  const kw = unknownKwargError(cls, cfg);
+  if (kw) return kw;
+  const declaredShape = cfg.batch_input_shape || cfg.batch_shape;
+  if (Array.isArray(declaredShape)) {
+    const dim = shapeDimError(declaredShape);
+    if (dim) return dim;
+  }
   if (DROPOUT_RATE_LAYERS.indexOf(canon(cls)) !== -1) {
     const r = cfg.rate;
     if (typeof r === 'number' && !(r >= 0 && r <= 1)) {
@@ -683,6 +732,9 @@ const SPEC_NDIM = {
   SpatialDropout1D: 3, SpatialDropout2D: 4,
   MaxPooling1D: 3, AveragePooling1D: 3,
   MaxPooling2D: 4, AveragePooling2D: 4,
+  /* RNN.__init__ sets InputSpec(ndim=3); without this a recurrent layer handed a
+     rank-2 tensor sailed through here and failed only in python */
+  LSTM: 3,
 };
 const SPEC_MIN_NDIM = {
   Dense: 2, Flatten: 1,
@@ -731,6 +783,52 @@ function poolStrideZero(c, cfg, full, pool, strides, pad) {
     'ksize=[' + nchw(ks).join(', ') + '], padding="' + String(pad).toUpperCase() +
     '", strides=[' + nchw(sd).join(', ') + ']](' + src + ")' with input shapes: [" + shape.join(',') + '].';
   return callWrapped(name, c, msg, full);
+}
+
+/* keras' own "One of the dimensions in the output is <= 0" never gets a chance to
+   fire for valid padding: the TF kernel refuses to build the op first, and its
+   trace is what the python surfaced.  Same shape of message for convolution and
+   pooling, so both are built here. */
+function negativeDimError(c, cfg, full, k, st, dl, pad, dim, eff) {
+  const name = cfg.name || '';
+  const isPool = !!POOL_RANK[c];
+  const rank = CONV_RANK[c] || POOL_RANK[c];
+  const cf = (cfg.data_format || 'channels_last') === 'channels_first';
+  const df = cf ? 'NCHW' : 'NHWC';
+  const spatial = cf ? full.slice(2) : full.slice(1, -1);
+  const ch = cf ? full[1] : full[full.length - 1];
+  /* a 1D op is run as its 2D equivalent with a length-1 axis expanded in front */
+  const pre = rank === 1 ? [1] : [];
+  const sp = pre.concat(spatial);
+  const ks = pre.concat(k);
+  const sd = pre.concat(st);
+  const dls = pre.concat(dl || new Array(rank).fill(1));
+  const nchw = (a) => (cf ? [1, 1].concat(a) : [1].concat(a, [1]));
+  const q = (v) => (v === null || v === undefined ? '?' : v);
+  const shape = (cf ? ['?', ch].concat(sp) : ['?'].concat(sp, [ch])).map(q).join(',');
+  const head = 'Negative dimension size caused by subtracting ' + eff + ' from ' + dim + ' for ';
+
+  if (isPool) {
+    const op = c.indexOf('Average') === 0 ? 'AvgPool' : 'MaxPool';
+    const explicit = op === 'MaxPool' ? 'explicit_paddings=[], ' : '';
+    const src = rank === 1 ? name + '/ExpandDims' : 'Placeholder';
+    return callWrapped(name, c,
+      head + "'{{node " + name + '/' + op + '}} = ' + op + '[T=DT_FLOAT, data_format="' + df +
+      '", ' + explicit + 'ksize=[' + nchw(ks).join(', ') + '], padding="' + String(pad).toUpperCase() +
+      '", strides=[' + nchw(sd).join(', ') + ']](' + src + ")' with input shapes: [" + shape + '].',
+      full);
+  }
+  const node = name + '/' + c;
+  const src = rank === 1
+    ? node + '/ExpandDims, ' + node + '/ExpandDims_1'
+    : 'Placeholder, ' + node + '/ReadVariableOp';
+  return callWrapped(name, c,
+    head + "'{{node " + node + '}} = Conv2D[T=DT_FLOAT, data_format="' + df +
+    '", dilations=[' + nchw(dls).join(', ') + '], explicit_paddings=[], padding="' +
+    String(pad).toUpperCase() + '", strides=[' + nchw(sd).join(', ') +
+    '], use_cudnn_on_gpu=true](' + src + ")' with input shapes: [" + shape + '], [' +
+    ks.concat([q(ch), q(cfg.filters)]).join(',') + '].',
+    full);
 }
 
 function convOutputLength(len, filt, pad, stride, dil) {
@@ -817,7 +915,12 @@ function buildError(cls, cfg, inputShape) {
     for (let i = 0; i < spatial.length; i++) {
       const o = convOutputLength(spatial[i], k[i], pad, st[i], dl[i]);
       if (o === 'ZERODIV') return poolStrideZero(c, cfg, full, k, st, pad);
-      if (o !== null && o < 0) {
+      /* keras fails when a dimension reaches 0, not only when it goes negative */
+      if (o !== null && o <= 0) {
+        if (pad === 'valid') {
+          const eff = k[i] + (k[i] - 1) * ((dl[i] || 1) - 1);
+          return negativeDimError(c, cfg, full, k, st, dl, pad, spatial[i], eff);
+        }
         return 'One of the dimensions in the output is <= 0 due to downsampling in ' + (cfg.name || '') + '. Consider increasing the input size. Received input shape ' + pyShapeList(full) + ' which would produce output shape with a zero or negative value in a dimension.';
       }
     }
@@ -835,15 +938,30 @@ function buildError(cls, cfg, inputShape) {
      Softmax.call(self, inputs, mask=None) means the footer lists mask too. */
   if (c === 'Softmax' && full.length) {
     const rank = full.length;
-    let ax = cfg.axis;
-    /* a 1-element list is unwrapped by call(); a longer one takes the
-       reduce_logsumexp path instead, which does not range-check here */
-    if (Array.isArray(ax)) ax = ax.length === 1 ? ax[0] : null;
-    if (typeof ax === 'number' && (ax < -rank || ax >= rank)) {
+    const ax = cfg.axis;
+    /* a 1-element list is unwrapped by call() and range-checked by tf.nn.softmax;
+       a longer one takes the reduce_logsumexp path, which range-checks every
+       entry of its own - the port used to skip that case entirely */
+    const single = Array.isArray(ax) ? (ax.length === 1 ? ax[0] : null) : ax;
+    if (typeof single === 'number' && (single < -rank || single >= rank)) {
       return callWrapped(cfg.name, 'Softmax',
         '`dim` must be in the range [-' + rank + ', ' + rank + ') where ' + rank
-        + ' is the number of dimensions in the input. Received: dim=' + ax,
+        + ' is the number of dimensions in the input. Received: dim=' + single,
         full, ['mask=None']);
+    }
+    if (Array.isArray(ax) && ax.length > 1) {
+      for (const a of ax) {
+        if (typeof a === 'number' && (a < -rank || a >= rank)) {
+          const shp = '[' + full.map((d) => (d === null || d === undefined ? '?' : d)).join(',') + ']';
+          return callWrapped(cfg.name, 'Softmax',
+            'Invalid reduction dimension ' + a + ' for input with ' + rank
+            + " dimensions. for '{{node " + cfg.name + '/ReduceLogSumExp/Max}} = Max[T=DT_FLOAT, '
+            + 'Tidx=DT_INT32, keep_dims=true](Placeholder, ' + cfg.name
+            + "/ReduceLogSumExp/Max/reduction_indices)' with input shapes: " + shp + ', ['
+            + ax.length + '] and with computed input tensors: input[1] = <' + ax.join(' ') + '>.',
+            full, ['mask=None']);
+        }
+      }
     }
   }
 
@@ -876,13 +994,86 @@ function buildError(cls, cfg, inputShape) {
   return null;
 }
 
-/* ---- stage 4: load_weights_from_hdf5_group -> batch_set_value ---- */
+/* ---- stage 4: load_weights_from_hdf5_group -> batch_set_value ----
+ *
+ * The previous implementation started from the SAVED shape and substituted the
+ * handful of axes it could name - the spatial axes and the filter/unit axis.
+ * Every other axis was therefore never compared: a Conv2D kernel stored with the
+ * wrong input-channel count, or with the wrong rank altogether, matched on every
+ * axis the code looked at and loaded clean here while keras refused it.
+ *
+ * This builds the shape keras would have created from the config plus the
+ * inferred input shape and compares the whole array, rank included.  An axis the
+ * graph does not pin down stays null and is skipped, because keras cannot
+ * disagree about a dimension it never knew either.
+ *
+ * The walk is POSITIONAL.  batch_set_value() zips the file's arrays against the
+ * layer's symbolic weights in order, so a file whose weight_names are the wrong
+ * way round hands a bias to a kernel - looking each array up by name hid that.
+ * -------------------------------------------------------------------------- */
+function expectedWeights(c, cfg, inputShape) {
+  const inp = inputShape || [];
+  const df = cfg.data_format || 'channels_last';
+  const hasBias = cfg.use_bias !== false;
+  const rank = CONV_RANK[c];
+  const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
+  const mul = (a, b) => (a === null || b === null ? null : a * b);
+  const chIn = rank ? num(df === 'channels_first' ? inp[1] : inp[inp.length - 1]) : null;
+  const ks = () => rankList(cfg.kernel_size, rank, new Array(rank).fill(null)).map(num);
+  const out = [];
+
+  if (c === 'Dense') {
+    out.push({ name: 'kernel', shape: [num(inp[inp.length - 1]), num(cfg.units)] });
+    if (hasBias) out.push({ name: 'bias', shape: [num(cfg.units)] });
+    return out;
+  }
+  if (rank && c.indexOf('Depthwise') === -1 && c.indexOf('Separable') === -1) {
+    const groups = num(cfg.groups) || 1;
+    out.push({ name: 'kernel', shape: ks().concat([chIn === null ? null : chIn / groups, num(cfg.filters)]) });
+    if (hasBias) out.push({ name: 'bias', shape: [num(cfg.filters)] });
+    return out;
+  }
+  if (c === 'DepthwiseConv1D' || c === 'DepthwiseConv2D') {
+    const dm = cfg.depth_multiplier === undefined ? 1 : num(cfg.depth_multiplier);
+    out.push({ name: 'depthwise_kernel', shape: ks().concat([chIn, dm]) });
+    if (hasBias) out.push({ name: 'bias', shape: [mul(chIn, dm)] });
+    return out;
+  }
+  if (c === 'SeparableConv1D' || c === 'SeparableConv2D') {
+    const dm = cfg.depth_multiplier === undefined ? 1 : num(cfg.depth_multiplier);
+    out.push({ name: 'depthwise_kernel', shape: ks().concat([chIn, dm]) });
+    out.push({ name: 'pointwise_kernel', shape: new Array(rank).fill(1).concat([mul(chIn, dm), num(cfg.filters)]) });
+    if (hasBias) out.push({ name: 'bias', shape: [num(cfg.filters)] });
+    return out;
+  }
+  if (c === 'BatchNormalization') {
+    const raw = typeof cfg.axis === 'number' ? cfg.axis : Array.isArray(cfg.axis) ? cfg.axis[0] : -1;
+    const idx = raw < 0 ? inp.length + raw : raw;
+    const dim = num(inp[idx]);
+    if (cfg.scale !== false) out.push({ name: 'gamma', shape: [dim] });
+    if (cfg.center !== false) out.push({ name: 'beta', shape: [dim] });
+    out.push({ name: 'moving_mean', shape: [dim] });
+    out.push({ name: 'moving_variance', shape: [dim] });
+    return out;
+  }
+  if (c === 'LSTM') {
+    const u = num(cfg.units);
+    const four = u === null ? null : 4 * u;
+    out.push({ name: 'kernel', shape: [num(inp[inp.length - 1]), four] });
+    out.push({ name: 'recurrent_kernel', shape: [u, four] });
+    if (hasBias) out.push({ name: 'bias', shape: [four] });
+    return out;
+  }
+  return null; /* a type we cannot size - leave it to keras */
+}
+
 function weightError(layer, weights) {
   const c = canon(layer.class_name);
   const cfg = layer.config || {};
   const stored = weights && weights[cfg.name];
   if (!stored || !stored.length) return null;
-  const find = (n) => stored.filter((w) => w.name === n)[0];
+  const want = expectedWeights(c, cfg, layer.input_shape);
+  if (!want) return null;
 
   const CONV_TRANSPOSED = ['Conv1D', 'Conv2D'];
   const seenAs = (wname, shape) =>
@@ -890,69 +1081,34 @@ function weightError(layer, weights) {
       ? [shape[3], shape[2], shape[0], shape[1]]
       : shape;
 
-  const cmp = (wname, subs) => {
-    const w = find(wname);
-    if (!w || !w.shape || !w.shape.length) return null;
-    const want = w.shape.slice();
-    let changed = false;
-    for (let n = 0; n < subs.length; n++) {
-      const at = subs[n][0];
-      const v = subs[n][1];
-      if (typeof v !== 'number' || !isFinite(v)) continue;
-      const idx = at < 0 ? want.length + at : at;
-      if (idx < 0 || idx >= want.length) continue;
-      if (want[idx] !== v) {
-        want[idx] = v;
-        changed = true;
+  for (let i = 0; i < want.length; i++) {
+    const w = want[i];
+    const got = stored[i];
+    if (!got || !got.shape || !got.shape.length) continue;
+    const have = got.shape;
+    const rankDiffers = have.length !== w.shape.length;
+    let differs = rankDiffers;
+    if (!differs) {
+      for (let n = 0; n < w.shape.length; n++) {
+        const v = w.shape[n];
+        if (v === null || v === undefined) continue; /* the graph never pinned this axis down */
+        if (have[n] !== v) {
+          differs = true;
+          break;
+        }
       }
     }
-    if (!changed) return null;
+    if (!differs) continue;
+    /* preprocess_weights_for_loading() transposes convolution kernels before the
+       assignment, and numpy reports a shape it cannot transpose as an axes error
+       rather than letting the assignment report a mismatch */
+    if (CONV_RANK[c] && (rankDiffers || c === 'Conv1D')) return "axes don't match array";
+    const shown = w.shape.map((d, n) => (d === null || d === undefined ? have[n] : d));
     return (
-      "Cannot assign value to variable ' " + cfg.name + '/' + wname + ":0': Shape mismatch." +
-      'The variable shape ' + pyShape(want) + ', and the assigned value shape ' + pyShape(seenAs(wname, w.shape)) + ' are incompatible.'
+      "Cannot assign value to variable ' " + cfg.name + '/' + w.name + ":0': Shape mismatch." +
+      'The variable shape ' + pyShape(shown) + ', and the assigned value shape '
+      + pyShape(seenAs(w.name, have)) + ' are incompatible.'
     );
-  };
-
-  const spatial = (v, rank) => {
-    const k = rankList(v, rank, []);
-    const out = [];
-    for (let n = 0; n < rank; n++) if (typeof k[n] === 'number') out.push([n, k[n]]);
-    return out;
-  };
-
-  if (c === 'Dense') {
-    return cmp('kernel', [[-1, cfg.units]]) || cmp('bias', [[0, cfg.units]]);
-  }
-  if (CONV_RANK[c] && c.indexOf('Depthwise') === -1 && c.indexOf('Separable') === -1) {
-    const rank = CONV_RANK[c];
-    return cmp('kernel', spatial(cfg.kernel_size, rank).concat([[-1, cfg.filters]])) || cmp('bias', [[0, cfg.filters]]);
-  }
-  if (c === 'DepthwiseConv1D' || c === 'DepthwiseConv2D') {
-    const rank = CONV_RANK[c];
-    const dm = cfg.depth_multiplier === undefined ? 1 : cfg.depth_multiplier;
-    return cmp('depthwise_kernel', spatial(cfg.kernel_size, rank).concat([[-1, dm]])) || cmp('bias', []);
-  }
-  if (c === 'SeparableConv1D' || c === 'SeparableConv2D') {
-    const rank = CONV_RANK[c];
-    const dm = cfg.depth_multiplier === undefined ? 1 : cfg.depth_multiplier;
-    return (
-      cmp('depthwise_kernel', spatial(cfg.kernel_size, rank).concat([[-1, dm]])) ||
-      cmp('pointwise_kernel', [[-1, cfg.filters]]) ||
-      cmp('bias', [[0, cfg.filters]])
-    );
-  }
-  if (c === 'BatchNormalization') {
-    const chAx = typeof cfg.axis === 'number' ? cfg.axis : Array.isArray(cfg.axis) ? cfg.axis[0] : null;
-    const dim = chAx !== null && layer.input_shape ? layer.input_shape[chAx < 0 ? layer.input_shape.length + chAx : chAx] : undefined;
-    return (
-      cmp('gamma', [[0, dim]]) || cmp('beta', [[0, dim]]) ||
-      cmp('moving_mean', [[0, dim]]) || cmp('moving_variance', [[0, dim]])
-    );
-  }
-  if (c === 'LSTM') {
-    const u = cfg.units;
-    const four = typeof u === 'number' ? 4 * u : undefined;
-    return cmp('kernel', [[-1, four]]) || cmp('recurrent_kernel', [[0, u], [-1, four]]) || cmp('bias', [[0, four]]);
   }
   return null;
 }
@@ -988,13 +1144,128 @@ const KNOWN_ACTIVATIONS = [
   'tanh', 'exponential', 'log_softmax',
 ];
 
+/* keras registers every one of these under BOTH its class name and its snake_case
+   alias, and a model saved from code that passed strings ("glorot_uniform",
+   "l2", "max_norm") stores the alias.  Listing only the class names rejected
+   perfectly loadable files. */
 const KNOWN_INITIALIZERS = [
   'Zeros', 'Ones', 'Constant', 'RandomNormal', 'RandomUniform', 'TruncatedNormal', 'VarianceScaling',
   'Orthogonal', 'Identity', 'GlorotNormal', 'GlorotUniform', 'HeNormal', 'HeUniform', 'LecunNormal',
   'LecunUniform', 'OrthogonalInitializer', 'IdentityInitializer',
+  'zeros', 'ones', 'constant', 'random_normal', 'random_uniform', 'truncated_normal',
+  'variance_scaling', 'orthogonal', 'identity', 'glorot_normal', 'glorot_uniform', 'he_normal',
+  'he_uniform', 'lecun_normal', 'lecun_uniform', 'zero', 'one', 'normal', 'uniform',
 ];
-const KNOWN_REGULARIZERS = ['L1', 'L2', 'L1L2'];
-const KNOWN_CONSTRAINTS = ['MaxNorm', 'MinMaxNorm', 'NonNeg', 'UnitNorm', 'RadialConstraint'];
+const KNOWN_REGULARIZERS = ['L1', 'L2', 'L1L2', 'l1', 'l2', 'l1_l2'];
+const KNOWN_CONSTRAINTS = [
+  'MaxNorm', 'MinMaxNorm', 'NonNeg', 'UnitNorm', 'RadialConstraint',
+  'max_norm', 'min_max_norm', 'non_neg', 'unit_norm', 'radial_constraint',
+];
+
+/* tf.as_dtype() accepts its aliases too - "half" is float16, "double" is float64 */
+const KNOWN_DTYPES = [
+  'float16', 'float32', 'float64', 'bfloat16', 'half', 'float', 'double',
+  'int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64',
+  'bool', 'string', 'complex64', 'complex128', 'qint8', 'qint16', 'qint32',
+  'quint8', 'quint16', 'resource', 'variant', 'mixed_float16', 'mixed_bfloat16',
+];
+
+/* The keyword arguments each layer's __init__ actually accepts.  load_model()
+   does `cls(**config)`, so a key outside this set is a TypeError and the model
+   never loads - the port used to read only the keys it cared about and let
+   everything else through.  Classes absent from the map (GRU, Conv3D, a custom
+   layer) are left alone: they are outside the supported operator set anyway and
+   guessing at their signatures would only invent false rejections. */
+const BASE_KWARGS = [
+  'name', 'trainable', 'dtype', 'dynamic', 'input_dim', 'input_shape', 'batch_input_shape',
+  'batch_size', 'weights', 'activity_regularizer', 'autocast', 'implementation',
+];
+const CONV_KWARGS = ['filters', 'kernel_size', 'strides', 'padding', 'data_format', 'dilation_rate',
+  'groups', 'activation', 'use_bias', 'kernel_initializer', 'bias_initializer', 'kernel_regularizer',
+  'bias_regularizer', 'activity_regularizer', 'kernel_constraint', 'bias_constraint'];
+/* DepthwiseConv and SeparableConv both forward **kwargs to Conv.__init__ and both
+   inherit Conv.get_config(), so keras really does write `groups` and the whole
+   `kernel_*` family into their configs and really does accept them back. */
+const DW_KWARGS = ['kernel_size', 'strides', 'padding', 'depth_multiplier', 'data_format',
+  'dilation_rate', 'activation', 'use_bias', 'depthwise_initializer', 'bias_initializer',
+  'depthwise_regularizer', 'bias_regularizer', 'activity_regularizer', 'depthwise_constraint',
+  'bias_constraint', 'groups', 'kernel_initializer', 'kernel_regularizer', 'kernel_constraint'];
+const SEP_KWARGS = DW_KWARGS.concat(['filters', 'pointwise_initializer', 'pointwise_regularizer',
+  'pointwise_constraint']);
+const POOL_KWARGS = ['pool_size', 'strides', 'padding', 'data_format'];
+
+const LAYER_KWARGS = {
+  /* `optional` is not a keras 2.15 argument - it arrived in a later 2.x and a
+     strict 2.15 backend raises "Unrecognized keyword arguments: ['optional']" on
+     a file that carries it.  It is accepted here because a backend running any
+     keras >= the one that SAVED the model loads it fine, which is the ordinary
+     case.  Drop it from this list if your backend is pinned to 2.15.0 exactly
+     and you want a file saved by a newer 2.x to be rejected here too. */
+  InputLayer: ['input_shape', 'batch_size', 'dtype', 'input_tensor', 'sparse', 'name', 'ragged',
+    'type_spec', 'batch_input_shape', 'optional'],
+  Dense: ['units', 'activation', 'use_bias', 'kernel_initializer', 'bias_initializer',
+    'kernel_regularizer', 'bias_regularizer', 'activity_regularizer', 'kernel_constraint',
+    'bias_constraint'],
+  Conv1D: CONV_KWARGS, Conv2D: CONV_KWARGS,
+  DepthwiseConv1D: DW_KWARGS, DepthwiseConv2D: DW_KWARGS,
+  SeparableConv1D: SEP_KWARGS, SeparableConv2D: SEP_KWARGS,
+  MaxPooling1D: POOL_KWARGS, MaxPooling2D: POOL_KWARGS,
+  AveragePooling1D: POOL_KWARGS, AveragePooling2D: POOL_KWARGS,
+  Flatten: ['data_format'],
+  Reshape: ['target_shape'],
+  Permute: ['dims'],
+  Dropout: ['rate', 'noise_shape', 'seed'],
+  SpatialDropout1D: ['rate', 'noise_shape', 'seed'],
+  SpatialDropout2D: ['rate', 'noise_shape', 'seed', 'data_format'],
+  AlphaDropout: ['rate', 'noise_shape', 'seed'],
+  GaussianDropout: ['rate', 'seed'],
+  GaussianNoise: ['stddev', 'seed'],
+  ActivityRegularization: ['l1', 'l2'],
+  Activation: ['activation'],
+  Softmax: ['axis'],
+  ReLU: ['max_value', 'negative_slope', 'threshold'],
+  LeakyReLU: ['alpha'],
+  BatchNormalization: ['axis', 'momentum', 'epsilon', 'center', 'scale', 'beta_initializer',
+    'gamma_initializer', 'moving_mean_initializer', 'moving_variance_initializer',
+    'beta_regularizer', 'gamma_regularizer', 'beta_constraint', 'gamma_constraint', 'renorm',
+    'renorm_clipping', 'renorm_momentum', 'fused', 'virtual_batch_size', 'adjustment',
+    'synchronized'],
+  LSTM: ['units', 'activation', 'recurrent_activation', 'use_bias', 'kernel_initializer',
+    'recurrent_initializer', 'bias_initializer', 'unit_forget_bias', 'kernel_regularizer',
+    'recurrent_regularizer', 'bias_regularizer', 'activity_regularizer', 'kernel_constraint',
+    'recurrent_constraint', 'bias_constraint', 'dropout', 'recurrent_dropout', 'return_sequences',
+    'return_state', 'go_backwards', 'stateful', 'time_major', 'unroll', 'zero_output_for_mask'],
+};
+
+/* InputLayer validates its own leftovers and words it differently from the
+   generic_utils.validate_kwargs() check every other layer inherits. */
+function unknownKwargError(cls, cfg) {
+  const c = canon(cls);
+  const allowed = LAYER_KWARGS[c];
+  if (!allowed) return null;
+  const ok = c === 'InputLayer' ? allowed : allowed.concat(BASE_KWARGS);
+  const bad = Object.keys(cfg || {}).filter((k) => ok.indexOf(k) === -1);
+  if (!bad.length) return null;
+  if (c === 'InputLayer') {
+    return 'Unrecognized keyword arguments: ' + pyRepr(bad);
+  }
+  return "('Keyword argument not understood:', " + pyRepr(bad[0]) + ')';
+}
+
+/* TensorShape refuses a negative or non-integer dimension the moment the
+   InputLayer is constructed; the port used to copy batch_input_shape straight
+   into inferShapes() without ever looking at it. */
+function shapeDimError(shape) {
+  for (const d of shape) {
+    if (d === null || d === undefined) continue;
+    if (typeof d !== 'number' || !isFinite(d) || Math.floor(d) !== d) {
+      return "Dimension value must be integer or None or have an __index__ method, got value '"
+        + d + "' with type '<class '" + (typeof d === 'number' ? 'float' : 'str') + "'>'";
+    }
+    if (d < 0) return 'Dimension ' + d + ' must be >= 0';
+  }
+  return null;
+}
 
 const INITIALIZER_KEYS = [
   'kernel_initializer', 'bias_initializer', 'depthwise_initializer', 'pointwise_initializer',
@@ -1018,56 +1289,71 @@ function objName(v) {
   return null;
 }
 
+const OBJECT_SCOPE_TAIL =
+  ' See https://www.tensorflow.org/guide/keras/save_and_serialize#registering_the_custom_object for details.';
+
+/* An unresolvable LAYER class is raised by deserialize_keras_object() before the
+   layer is ever constructed, so it reaches the user unwrapped.  Everything else
+   below is raised from inside `cls(**config)` and is wrapped in the "Error when
+   deserializing class" envelope by the caller. */
+function unknownLayerError(cls) {
+  if (KNOWN_LAYERS.indexOf(canon(cls)) !== -1) return null;
+  return 'Unknown layer: ' + pyRepr(String(cls)) +
+    '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.' +
+    OBJECT_SCOPE_TAIL;
+}
+
 function unresolvableObject(cls, cfg) {
   const c = canon(cls);
-
-  if (KNOWN_LAYERS.indexOf(c) === -1) {
-    return 'Unknown layer: ' + cls + '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.';
-  }
+  const unknown = (kind, n) => 'Unknown ' + kind + ': ' + pyRepr(String(n)) +
+    '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.' +
+    OBJECT_SCOPE_TAIL;
 
   /* an activation given as a name must resolve; given as an object it must be a
      layer keras knows (handled by the layer check above for nested classes) */
   const a = cfg.activation;
   if (typeof a === 'string' && a && KNOWN_ACTIVATIONS.indexOf(a) === -1) {
-    return 'Unknown activation function: ' + a + '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.';
+    return unknown('activation function', a);
   }
   if (a && typeof a === 'object') {
     const an = objName(a);
     if (an && KNOWN_LAYERS.indexOf(canon(an)) === -1 && KNOWN_ACTIVATIONS.indexOf(String(an).toLowerCase()) === -1) {
-      return 'Unknown activation function: ' + an + '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.';
+      return unknown('activation function', an);
     }
   }
   if (c === 'LSTM' && typeof cfg.recurrent_activation === 'string' && cfg.recurrent_activation && KNOWN_ACTIVATIONS.indexOf(cfg.recurrent_activation) === -1) {
-    return 'Unknown activation function: ' + cfg.recurrent_activation + '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.';
+    return unknown('activation function', cfg.recurrent_activation);
   }
 
   for (const key of INITIALIZER_KEYS) {
     const n = objName(cfg[key]);
     if (n && KNOWN_INITIALIZERS.indexOf(n) === -1) {
-      return 'Unknown initializer: ' + n + '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.';
+      return unknown('initializer', n);
     }
   }
   for (const key of REGULARIZER_KEYS) {
     const n = objName(cfg[key]);
     if (n && KNOWN_REGULARIZERS.indexOf(n) === -1) {
-      return 'Unknown regularizer: ' + n + '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.';
+      return unknown('regularizer', n);
     }
   }
   for (const key of CONSTRAINT_KEYS) {
     const n = objName(cfg[key]);
     if (n && KNOWN_CONSTRAINTS.indexOf(n) === -1) {
-      return 'Unknown constraint: ' + n + '. Please ensure you are using a `keras.utils.custom_object_scope` and that this object is included in the scope.';
+      return unknown('constraint', n);
     }
   }
 
-  /* a dtype must be a real policy / dtype string */
+  /* a dtype must be a real policy / dtype string.  keras 3 serialises it as a
+     DTypePolicy object, which keras 2.15 cannot turn into a policy at all. */
   const dt = cfg.dtype;
   if (typeof dt === 'string' && dt) {
-    const ok = ['float16', 'float32', 'float64', 'bfloat16', 'int8', 'int16', 'int32', 'int64',
-      'uint8', 'uint16', 'uint32', 'uint64', 'bool', 'string', 'mixed_float16', 'mixed_bfloat16'];
-    if (ok.indexOf(dt) === -1) {
+    if (KNOWN_DTYPES.indexOf(dt) === -1) {
       return 'Cannot convert value ' + dt + ' to a TensorFlow DType.';
     }
+  }
+  if (dt && typeof dt === 'object') {
+    return 'Cannot convert value ' + pyRepr(dt) + ' to a TensorFlow DType.';
   }
   return null;
 }
@@ -1092,12 +1378,16 @@ function constructorFailure(parsed) {
     const layer = seq[idx];
     const cls = layer.class_name;
 
-    /* 0. can keras even resolve every object named in this config? */
-    const unresolved = unresolvableObject(cls, layer.config);
-    if (unresolved) return unresolved;
+    /* 0. an unknown layer CLASS is raised before construction, so it is not wrapped */
+    const unknownLayer = unknownLayerError(cls);
+    if (unknownLayer) return unknownLayer;
 
+    /* an unknown activation / initializer / regularizer / constraint / dtype is
+       raised from inside cls(**config), so it wears the same envelope as a bad
+       argument value does */
     const rawCfg = (rawLayers[idx] && rawLayers[idx].config) || null;
-    const inner = initError(cls, layer.config, rawCfg); /* 1. cls(**config) */
+    const inner = unresolvableObject(cls, layer.config) /* 0b */
+      || initError(cls, layer.config, rawCfg); /* 1. cls(**config) */
     if (inner) {
       if (UNWRAPPED_FROM_CONFIG.indexOf(canon(cls)) !== -1) return inner;
       const printable = rawCfg || layer.config;
@@ -1142,16 +1432,24 @@ function weightsGroupError(seq, weights) {
     }
     if (c === 'Embedding' || c === 'PReLU') return 1;
     const base = WEIGHT_COUNT[c];
-    if (base === undefined) return undefined;
-    return base + (cfg.use_bias === false ? 0 : 1);
+    if (base !== undefined) return base + (cfg.use_bias === false ? 0 : 1);
+    /* every other layer in the supported set is weightless, and saying so is the
+       point: returning undefined here let a weight group bolted onto a Dropout
+       or a GaussianNoise count itself into the model's own tally, so keras saw a
+       file with more weighted layers than the graph has and the port did not */
+    if (SUPP_LAYERS.indexOf(c) !== -1) return 0;
+    return undefined;
   };
 
-  /* keras' filtered_layers: the layers that actually carry weights.  A layer
-     counts if the file has a group under its name, or if it is a type we know
-     carries weights (so a layer added to the config is still caught). */
+  /* keras' filtered_layers: the layers that actually carry weights.  A type we
+     cannot size falls back to "does the file have a group for it", so a layer
+     added to the config is still caught. */
   const named = (l) => (l.config && l.config.name) || '';
-  const filtered = seq.filter((l) =>
-    savedNames.indexOf(named(l)) !== -1 || expectedCount(canon(l.class_name), l.config || {}) !== undefined);
+  const filtered = seq.filter((l) => {
+    const want = expectedCount(canon(l.class_name), l.config || {});
+    if (want === undefined) return savedNames.indexOf(named(l)) !== -1;
+    return want > 0;
+  });
 
   if (filtered.length !== savedNames.length) {
     return 'Layer count mismatch when loading weights from file. Model expected '
@@ -1648,10 +1946,6 @@ function checkModelCompatibility(parsed) {
 
   try {
     if (!cfgRoot || !cfgRoot.class_name) throw new Error('model_config missing or unreadable');
-
-    /* a serialisation keras 2.15 cannot read at all - fails for any model type */
-    const serial = serialisationFailure(parsed);
-    if (serial) throw new Error(serial);
 
     /* `if type(model) != keras.models.Sequential` - the per-layer emulation
        below walks the layer list as a linear stack, which is meaningless for a
