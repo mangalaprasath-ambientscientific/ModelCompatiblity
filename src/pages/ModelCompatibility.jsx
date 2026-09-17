@@ -64,6 +64,11 @@ function readH5(arrayBuffer, filename) {
        python would have printed 0.0 - the deserialisation message quotes the
        config verbatim, so the difference is visible to the user. */
     if (typeof rawConfig === 'string') cfgRaw = parseRawJson(rawConfig);
+    /* python's json.loads() accepts Infinity / -Infinity / NaN and keras stores
+       them unread, so such a model LOADS and reports normally.  JSON.parse()
+       throws, so fall back to the literal-preserving parse rather than
+       condemning the file. */
+    if (cfg === null && cfgRaw !== null) cfg = fromRaw(cfgRaw);
   }
 
   return {
@@ -102,6 +107,8 @@ function readWeights(f) {
      nothing", which is a different error further down. */
   if (!root || !root.keys) return null;
   const per = {};
+  /* the first weight_names entry that does not resolve inside its layer group */
+  let missing = null;
 
   const asList = (v) => {
     if (v === null || v === undefined) return [];
@@ -142,15 +149,30 @@ function readWeights(f) {
       } catch (e) {
         d = null;
       }
+      /* load_weights_from_hdf5_group() does, with g = /model_weights/<layer>:
+
+             weight_values = [np.asarray(g[weight_name])
+                              for weight_name in weight_names]
+
+         so each name is resolved INSIDE the layer group.  keras writes the
+         full variable name there, and the datasets nested to match, giving
+         /model_weights/dense/dense/kernel:0.  A file whose weight_names say
+         'dense/kernel' while the dataset sits at /model_weights/dense/kernel
+         makes h5py look for /model_weights/dense/dense/kernel and raise
+
+             'Unable to synchronously open object (component not found)'
+
+         Retrying on the LEAF name papered over exactly that, so a file the
+         backend cannot open reported as clean. */
       if (!d) {
-        try {
-          d = g.get(leaf(wn));
-        } catch (e) {
-          d = null;
-        }
+        missing = missing || wn;
+        continue;
       }
       record(layerName, leaf(wn), d);
     }
+  }
+  if (missing) {
+    per.__missing__ = missing;
   }
   return per;
 }
@@ -239,17 +261,15 @@ const NON_INPUT_LAYERS = [].concat(POOL_LAYERS, ACT_LAYERS, NORM_LAYERS, [
   'Dropout', 'SpatialDropout1D', 'SpatialDropout2D', 'AlphaDropout', 'GaussianDropout', 'ActivityRegularization',
 ]);
 
-/* keras.activations.linear / relu / softmax / sigmoid / tanh.
+/* supp_activation (Model_Compatibility_47.py:38-43) is
+     [linear, relu, tf.nn.leaky_relu, softmax, sigmoid, tanh]
+   and `activation in supp_activation` is an identity test against the resolved
+   function.  keras.activations.get('leaky_relu') returns tf.nn.leaky_relu
+   itself, so the name matches and activation_check() reports it as supported -
+   leaving it out rejected a model the backend passes.
 
-   supp_activation (Model_Compatibility_47.py:38-43) holds tf.nn.leaky_relu as a
-   FUNCTION OBJECT.  A config can only ever carry the NAME "leaky_relu", and
-   keras.activations.get('leaky_relu') never returns that same object - on keras
-   2.15 the name does not resolve at all - so the backend fails such a model
-   either way, by a load error or by activation_check().  Listing the name here
-   made the port pass a model the python rejects.
-
-   LeakyReLU as a LAYER is unaffected: it is matched through SUPP_ACT_CLASSES. */
-const SUPP_ACTIVATION = ['linear', 'relu', 'softmax', 'sigmoid', 'tanh'];
+   LeakyReLU as a LAYER is separate: it is matched through SUPP_ACT_CLASSES. */
+const SUPP_ACTIVATION = ['linear', 'relu', 'leaky_relu', 'softmax', 'sigmoid', 'tanh'];
 /* supp_activation_classes: LeakyReLU (both module paths), ReLU, Softmax */
 const SUPP_ACT_CLASSES = ['LeakyReLU', 'ReLU', 'Softmax'];
 const LSTM_ACT = ['sigmoid', 'tanh'];
@@ -269,7 +289,14 @@ const pyBool = (v) => (v ? 'True' : 'False');
 const tup = (a) => (a.length === 1 ? '(' + a[0] + ',)' : '(' + a.join(', ') + ')');
 /* python prints a float as 0.0, not 0 - only cosmetic, but it keeps the
    always-pass rows reading exactly the way the backend printed them */
-const pyNum = (v) => (typeof v === 'number' && Number.isInteger(v) ? v.toFixed(1) : String(v));
+const pyNum = (v) => {
+  if (typeof v !== 'number') return String(v);
+  /* repr(float('inf')) is 'inf' in python, String() gives 'Infinity' here */
+  if (Number.isNaN(v)) return 'nan';
+  if (v === Infinity) return 'inf';
+  if (v === -Infinity) return '-inf';
+  return Number.isInteger(v) ? v.toFixed(1) : String(v);
+};
 
 /* an activation can be serialised as a name ("relu") or as a LAYER object
    ({"class_name": "LeakyReLU", "config": {...}}), which keras deserialises into
@@ -278,6 +305,16 @@ function actName(a) {
   if (a === null || a === undefined) return 'linear';
   if (typeof a === 'string') return a;
   if (typeof a === 'object') {
+    /* keras >= 2.13 serialises a plain activation FUNCTION as
+         {"module":"keras.activations","class_name":"function",
+          "config":"relu","registered_name":"relu"}
+       and _retrieve_class_or_fn() resolves it through `config`, never through
+       class_name.  Reading class_name here produced the literal string
+       'function', which is in no allow-list. */
+    if (String(a.class_name) === 'function') {
+      const fn = a.config != null ? a.config : a.registered_name;
+      if (fn != null) return String(fn);
+    }
     if (a.class_name) return String(a.class_name);
     if (a.config && a.config.activation) return String(a.config.activation);
   }
@@ -508,6 +545,13 @@ function parseRawJson(text) {
     if (text.substr(i, 4) === 'true') { i += 4; return true; }
     if (text.substr(i, 5) === 'false') { i += 5; return false; }
     if (text.substr(i, 4) === 'null') { i += 4; return null; }
+    /* json.loads() accepts the three literals python's json module emits for
+       non-finite floats; JSON.parse() throws on all of them, which used to sink
+       the whole config.  They are kept as raw text so pyRepr prints what python
+       would have printed (inf / -inf / nan). */
+    if (text.substr(i, 9) === '-Infinity') { i += 9; return RAWNUM + '-inf'; }
+    if (text.substr(i, 8) === 'Infinity') { i += 8; return RAWNUM + 'inf'; }
+    if (text.substr(i, 3) === 'NaN') { i += 3; return RAWNUM + 'nan'; }
     const st = i;
     while (i < text.length && '-+.eE0123456789'.indexOf(text[i]) !== -1) i++;
     return RAWNUM + text.slice(st, i);
@@ -517,6 +561,22 @@ function parseRawJson(text) {
   } catch (e) {
     return null;
   }
+}
+
+/* the literal-preserving tree turned back into ordinary values, used as the
+   fallback config when JSON.parse() refused the text outright */
+function fromRaw(v) {
+  if (typeof v === 'string' && v.indexOf(RAWNUM) === 0) {
+    const t = v.slice(RAWNUM.length);
+    return t === 'inf' ? Infinity : t === '-inf' ? -Infinity : t === 'nan' ? NaN : Number(t);
+  }
+  if (Array.isArray(v)) return v.map(fromRaw);
+  if (v && typeof v === 'object') {
+    const o = {};
+    for (const k of Object.keys(v)) o[k] = fromRaw(v[k]);
+    return o;
+  }
+  return v;
 }
 
 function pyRepr(v) {
@@ -673,8 +733,19 @@ function coreInitError(cls, cfg, rawCfg) {
     return 'Received an invalid value for `units`, expected a positive integer. Received: units=' + cfg.units;
   }
   /* LSTM tests `<= 0`, so units=0 fails here but not in Dense */
-  if (c === 'LSTM' && typeof cfg.units === 'number' && cfg.units <= 0) {
-    return 'Received an invalid value for argument `units`, expected a positive integer, got ' + cfg.units + '.';
+  if (c === 'LSTM' && 'units' in cfg) {
+    /* `if units <= 0:` is the first line of LSTM.__init__.  Against a str or a
+       None that comparison is a TypeError, not a ValueError - the port only
+       ever ran it when the value was already a number, so a string unit count
+       loaded here and died in the backend. */
+    if (typeof cfg.units !== 'number') {
+      return "'<=' not supported between instances of '"
+        + (cfg.units === null || cfg.units === undefined ? 'NoneType' : typeof cfg.units === 'string' ? 'str' : 'dict')
+        + "' and 'int'";
+    }
+    if (cfg.units <= 0) {
+      return 'Received an invalid value for argument `units`, expected a positive integer, got ' + cfg.units + '.';
+    }
   }
   if (c === 'ReLU') {
     const mv = cfg.max_value;
@@ -706,23 +777,16 @@ function coreInitError(cls, cfg, rawCfg) {
       return '`data_format` must be "channels_last" or "channels_first". Received: data_format=' + df + '.';
     }
   }
-  /* GaussianDropout range-checks its rate in __init__ and words it differently
-     from Dropout, so it cannot just join DROPOUT_RATE_LAYERS.  AlphaDropout is
-     deliberately absent: it stores its rate without checking it. */
-  // if (c === 'GaussianDropout') {
-  //   const r = cfg.rate;
-  //   if (typeof r === 'number' && !(r >= 0 && r <= 1)) {
-  //     return 'Invalid value received for argument `rate`. Expected a float value between 0 and 1. Received: rate='
-  //       + rawNum(rawCfg, 'rate', r);
-  //   }
-  // }
-  if (c === 'GaussianNoise') {
-    const sd = cfg.stddev;
-    if (typeof sd === 'number' && !(sd >= 0)) {
-      return 'Invalid value received for argument `stddev`. Expected a float value between 0 and 1. Received: stddev='
-        + rawNum(rawCfg, 'stddev', sd);
+  /* GaussianDropout stores its rate WITHOUT checking it, like AlphaDropout and
+     unlike Dropout - a rate outside [0, 1] loads and reaches the report. */
+  if (c === 'Softmax' && 'axis' in cfg && cfg.axis !== null && cfg.axis !== undefined) {
+    const ax = Array.isArray(cfg.axis) ? cfg.axis[0] : cfg.axis;
+    if (typeof ax !== 'number') {
+      return 'Expected int for argument \'axis\' not ' + pyRepr(ax) + '.';
     }
   }
+  /* GaussianNoise stores its stddev unchecked, exactly like GaussianDropout's
+     rate - a negative stddev loads and reaches the report. */
   return null;
 }
 
@@ -736,10 +800,36 @@ function initError(cls, cfg, rawCfg) {
   /* Layer.__init__ rejects an unknown keyword before it validates anything */
   const kw = unknownKwargError(cls, cfg);
   if (kw) return kw;
+  /* `dynamic` is accepted as a named argument of Layer.__init__, but a TRUE
+     value makes the layer eager: keras can then no longer infer a static output
+     shape for it while building the Sequential graph.  dynamic=False is the
+     default and is harmless. */
+  if (cfg.dynamic === true) {
+    return 'A layer with `dynamic=True` cannot be used to build a static graph. '
+      + 'Remove `dynamic=True` or implement `compute_output_shape`.';
+  }
+  /* base_layer.Layer.__init__ type-checks `trainable` before it touches
+     anything else:  if not isinstance(trainable, bool): raise TypeError.
+     JSON keeps `true` and `1` distinct, so the value is visible here - a
+     numeric trainable used to sail straight through. */
+  if ('trainable' in cfg && cfg.trainable !== null && cfg.trainable !== undefined
+    && typeof cfg.trainable !== 'boolean') {
+    return 'Expected `trainable` argument to be a boolean, but got: ' + pyRepr(cfg.trainable);
+  }
+  /* _init_set_name() is the very next thing Layer.__init__ runs */
+  if ('name' in cfg && cfg.name !== null && cfg.name !== undefined && typeof cfg.name !== 'string') {
+    return 'Expected `name` to be a string. Received: name=' + pyRepr(cfg.name)
+      + ' (of type ' + pyType(cfg.name) + ')';
+  }
   const declaredShape = cfg.batch_input_shape || cfg.batch_shape;
   if (Array.isArray(declaredShape)) {
     const dim = shapeDimError(declaredShape);
     if (dim) return dim;
+    /* the InputLayer builds its placeholder inside __init__, so a float that
+       only the source text reveals dies here rather than at build time */
+    const rawShape = rawCfg && (rawCfg.batch_input_shape || rawCfg.batch_shape);
+    const rf = rawFloat(rawShape);
+    if (rf) return DIM_INT(rf);
   }
   if (DROPOUT_RATE_LAYERS.indexOf(canon(cls)) !== -1) {
     const r = cfg.rate;
@@ -1194,6 +1284,10 @@ const KNOWN_REGULARIZERS = ['L1', 'L2', 'L1L2', 'OrthogonalRegularizer',
 const KNOWN_CONSTRAINTS = [
   'MaxNorm', 'MinMaxNorm', 'NonNeg', 'UnitNorm', 'RadialConstraint',
   'max_norm', 'min_max_norm', 'non_neg', 'unit_norm', 'radial_constraint',
+  /* keras/constraints.py ends with a block of LEGACY aliases - maxnorm,
+     nonneg and unitnorm - bound to the same classes.  deserialize() looks the
+     name up in that module's globals(), so all three resolve. */
+  'maxnorm', 'nonneg', 'unitnorm',
 ];
 
 /* tf.as_dtype() accepts its aliases too - "half" is float16, "double" is float64 */
@@ -1210,9 +1304,16 @@ const KNOWN_DTYPES = [
    everything else through.  Classes absent from the map (GRU, Conv3D, a custom
    layer) are left alone: they are outside the supported operator set anyway and
    guessing at their signatures would only invent false rejections. */
+/* Layer.__init__'s own allowed_kwargs, verbatim.  These are constructor-time
+   conveniences that get_config() never writes back, but validate_kwargs() still
+   accepts every one of them, so a config carrying one loads normally - measured
+   on input_dim (Dense and Conv1D), input_shape, batch_size, weights, autocast
+   and implementation.
+
+   `dynamic` is the exception and is NOT here: see dynamicError() below. */
 const BASE_KWARGS = [
-  'name', 'trainable', 'dtype', 'dynamic', 'input_dim', 'input_shape', 'batch_input_shape',
-  'batch_size', 'weights', 'activity_regularizer', 'autocast', 'implementation',
+  'name', 'trainable', 'dtype', 'input_dim', 'input_shape', 'batch_input_shape',
+  'batch_size', 'weights', 'activity_regularizer', 'autocast', 'implementation', 'dynamic',
 ];
 const CONV_KWARGS = ['filters', 'kernel_size', 'strides', 'padding', 'data_format', 'dilation_rate',
   'groups', 'activation', 'use_bias', 'kernel_initializer', 'bias_initializer', 'kernel_regularizer',
@@ -1267,7 +1368,11 @@ const LAYER_KWARGS = {
     'recurrent_initializer', 'bias_initializer', 'unit_forget_bias', 'kernel_regularizer',
     'recurrent_regularizer', 'bias_regularizer', 'activity_regularizer', 'kernel_constraint',
     'recurrent_constraint', 'bias_constraint', 'dropout', 'recurrent_dropout', 'return_sequences',
-    'return_state', 'go_backwards', 'stateful', 'time_major', 'unroll', 'zero_output_for_mask'],
+    /* `implementation` is a real RNN argument and LSTM.get_config() writes it,
+       so it belongs here rather than in BASE_KWARGS - on a Dense it is a key
+       keras never emits. */
+    'return_state', 'go_backwards', 'stateful', 'time_major', 'unroll', 'zero_output_for_mask',
+    'implementation'],
 };
 
 /* The arguments each __init__ takes POSITIONALLY with no default.  load_model()
@@ -1334,6 +1439,146 @@ function unknownKwargError(cls, cfg) {
   return "('Keyword argument not understood:', " + pyRepr(bad[0]) + ')';
 }
 
+/* python's repr of a value's type, for the messages that quote it */
+function pyType(v) {
+  if (v === null || v === undefined) return "<class 'NoneType'>";
+  if (typeof v === 'boolean') return "<class 'bool'>";
+  if (typeof v === 'string') return "<class 'str'>";
+  if (Array.isArray(v)) return "<class 'list'>";
+  if (typeof v === 'object') return "<class 'dict'>";
+  return Number.isInteger(v) ? "<class 'int'>" : "<class 'float'>";
+}
+
+/* ---------------------------------------------------------------------------
+ * INTEGER ARGUMENTS
+ *
+ * JSON has one number type, python has two.  json.loads() hands keras a FLOAT
+ * for `3.0`; JSON.parse() hands this port `3`, and nothing in the parsed tree
+ * can tell the two apart.  keras carries the float into a TensorShape or an op
+ * attribute and raises there, so the backend rejects a model this port passed.
+ *
+ * parseRawJson() already keeps the source text of every number, so the decimal
+ * point is still there to be found - config_raw is the only place the
+ * distinction survives.
+ * ------------------------------------------------------------------------ */
+function rawFloat(v) {
+  if (typeof v === 'string' && v.indexOf(RAWNUM) === 0) {
+    const t = v.slice(RAWNUM.length);
+    /* json.loads() returns a float for any literal carrying '.', 'e' or 'E' -
+       1e5 included - and an int for everything else. */
+    return /[.eE]/.test(t) ? t : null;
+  }
+  if (Array.isArray(v)) {
+    for (const x of v) {
+      const r = rawFloat(x);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
+const DIM_INT = (t) => "Dimension value must be integer or None or have an __index__ method, got value '"
+  + t + "' with type '<class 'float'>'";
+
+/* The arguments a float actually breaks.  Every entry below is a MEASURED
+   backend verdict, not a deduction - the two that were deduced (a convolution's
+   strides and dilation_rate, left out on the grounds that they only become op
+   attributes) turned out to fail, so nothing here is extrapolated any more.
+
+   Confirmed to FAIL:  a convolution's kernel_size, strides and dilation_rate;
+     Reshape.target_shape; Permute.dims; BatchNormalization.axis;
+     InputLayer.batch_input_shape; LSTM.units.
+   Confirmed to PASS:  a convolution's `filters` - Conv.__init__ opens with
+     `if isinstance(filters, float): filters = int(filters)`;  Dense.units, for
+     the same reason (`int(units)`);  and EVERYTHING a pooling layer carries,
+     pool_size and strides both, which is why no pooling class appears here.
+
+   depth_multiplier and groups are grouped with kernel_size because all three
+   land in the conv kernel shape, kernel_size + (input_channel // groups,
+   filters), which is built through add_weight() -> TensorShape. */
+const INT_ARGS = {
+  Conv1D: ['kernel_size', 'strides', 'dilation_rate', 'groups'],
+  Conv2D: ['kernel_size', 'strides', 'dilation_rate', 'groups'],
+  DepthwiseConv1D: ['kernel_size', 'strides', 'dilation_rate', 'depth_multiplier'],
+  DepthwiseConv2D: ['kernel_size', 'strides', 'dilation_rate', 'depth_multiplier'],
+  SeparableConv1D: ['kernel_size', 'strides', 'dilation_rate', 'depth_multiplier'],
+  SeparableConv2D: ['kernel_size', 'strides', 'dilation_rate', 'depth_multiplier'],
+  LSTM: ['units'],
+  Reshape: ['target_shape'],
+  Permute: ['dims'],
+  BatchNormalization: ['axis'],
+};
+
+/* conv_utils.normalize_tuple(value, n, name):
+     if isinstance(value, int):   value_tuple = (value,) * n
+     else:                        value_tuple = tuple(value)   # TypeError -> ValueError
+   A SCALAR float is neither an int nor iterable, so it dies right there - while
+   a LIST of floats is iterable and survives, which is why [2.0, 2.0] loads and
+   a bare 2.0 does not.  Only the raw text can tell 2.0 from 2. */
+const TUPLE_ARGS = {
+  Conv1D: [['kernel_size', 1], ['strides', 1], ['dilation_rate', 1]],
+  Conv2D: [['kernel_size', 2], ['strides', 2], ['dilation_rate', 2]],
+  DepthwiseConv1D: [['kernel_size', 1], ['strides', 1], ['dilation_rate', 1]],
+  DepthwiseConv2D: [['kernel_size', 2], ['strides', 2], ['dilation_rate', 2]],
+  SeparableConv1D: [['kernel_size', 1], ['strides', 1], ['dilation_rate', 1]],
+  SeparableConv2D: [['kernel_size', 2], ['strides', 2], ['dilation_rate', 2]],
+  MaxPooling1D: [['pool_size', 1], ['strides', 1]],
+  MaxPooling2D: [['pool_size', 2], ['strides', 2]],
+  AveragePooling1D: [['pool_size', 1], ['strides', 1]],
+  AveragePooling2D: [['pool_size', 2], ['strides', 2]],
+};
+
+function tupleArgError(cls, rawCfg) {
+  const specs = TUPLE_ARGS[canon(cls)];
+  if (!specs || !rawCfg) return null;
+  for (const [key, n] of specs) {
+    const raw = rawCfg[key];
+    if (Array.isArray(raw)) continue;          /* iterable - normalize_tuple copes */
+    const t = rawFloat(raw);
+    if (t) {
+      return 'The `' + key + '` argument must be a tuple of ' + n + ' integers. Received: ' + t;
+    }
+  }
+  return null;
+}
+
+/* An initializer calls _assert_float_dtype() on the dtype it is handed, so a
+   layer that OWNS WEIGHTS cannot carry an int or complex dtype.  A layer with
+   no weights never reaches that code. */
+const FLOAT_DTYPES = ['float16', 'float32', 'float64', 'bfloat16', 'half', 'double'];
+
+function dtypeWeightError(cls, cfg) {
+  if (!INIT_RANK[canon(cls)]) return null;
+  const dt = cfg.dtype;
+  if (typeof dt !== 'string' || !dt) return null;
+  if (FLOAT_DTYPES.indexOf(dt) !== -1) return null;
+  if (KNOWN_DTYPES.indexOf(dt) === -1) return null;   /* an unknown name is reported elsewhere */
+  return "Expected floating point type, got <dtype: '" + dt + "'>.";
+}
+
+/* An activation written as a nested LAYER is constructed like any other layer,
+   so its own __init__ validation runs. */
+function nestedActError(v) {
+  if (!v || typeof v !== 'object') return null;
+  if (canon(objName(v)) !== 'LeakyReLU') return null;
+  const c = v.config || {};
+  if ('alpha' in c && (c.alpha === null || c.alpha === undefined)) {
+    return 'The alpha value of a Leaky ReLU layer cannot be None, expecting a float. '
+      + 'Received: alpha=None';
+  }
+  return null;
+}
+
+function floatArgError(cls, rawCfg) {
+  const keys = INT_ARGS[canon(cls)];
+  if (!keys || !rawCfg) return null;
+  for (const k of keys) {
+    const t = rawFloat(rawCfg[k]);
+    if (t) return DIM_INT(t);
+  }
+  return null;
+}
+
 /* TensorShape refuses a negative or non-integer dimension the moment the
    InputLayer is constructed; the port used to copy batch_input_shape straight
    into inferShapes() without ever looking at it. */
@@ -1364,6 +1609,81 @@ const CONSTRAINT_KEYS = [
 ];
 
 /* a serialised object is {"class_name": X, "config": {...}} or a bare name */
+/* ---------------------------------------------------------------------------
+ * INITIALIZERS
+ *
+ * An initializer validates twice: VarianceScaling checks its own arguments in
+ * __init__, while Identity, Orthogonal and Constant only find out what they
+ * were handed when __call__ builds the weight.  Both were unchecked here, so a
+ * model with an impossible initializer passed.
+ *
+ * The rank of each weight is fixed by the layer type, which is all these
+ * checks need - no input shape required.
+ * ------------------------------------------------------------------------ */
+const INIT_RANK = {
+  Dense: { kernel_initializer: 2, bias_initializer: 1 },
+  Conv1D: { kernel_initializer: 3, bias_initializer: 1 },
+  Conv2D: { kernel_initializer: 4, bias_initializer: 1 },
+  DepthwiseConv1D: { depthwise_initializer: 3, bias_initializer: 1 },
+  DepthwiseConv2D: { depthwise_initializer: 4, bias_initializer: 1 },
+  SeparableConv1D: { depthwise_initializer: 3, pointwise_initializer: 3, bias_initializer: 1 },
+  SeparableConv2D: { depthwise_initializer: 4, pointwise_initializer: 4, bias_initializer: 1 },
+  LSTM: { kernel_initializer: 2, recurrent_initializer: 2, bias_initializer: 1 },
+  BatchNormalization: {
+    beta_initializer: 1, gamma_initializer: 1,
+    moving_mean_initializer: 1, moving_variance_initializer: 1,
+  },
+};
+
+/* 'IdentityInitializer', 'Identity' and 'identity' are the same thing */
+function initKind(v) {
+  const n = objName(v);
+  if (!n) return null;
+  return String(n).toLowerCase().replace(/initializer$/, '').replace(/_/g, '');
+}
+
+/* VarianceScaling.__init__ - raised while the layer is being constructed */
+function initArgError(v) {
+  if (initKind(v) !== 'variancescaling') return null;
+  const c = (v && v.config) || {};
+  if ('scale' in c && !(typeof c.scale === 'number' && c.scale > 0)) {
+    return '`scale` must be positive float. Received: scale=' + pyNum(c.scale);
+  }
+  const allowed = ['uniform', 'truncated_normal', 'untruncated_normal', 'normal'];
+  if ('distribution' in c && allowed.indexOf(String(c.distribution)) === -1) {
+    return 'Invalid `distribution` argument: ' + c.distribution
+      + '. Allowed distributions: ["uniform", "truncated_normal", "untruncated_normal"]';
+  }
+  return null;
+}
+
+/* Identity / Orthogonal / Constant - raised when __call__ builds the weight */
+function initShapeError(cls, cfg) {
+  const ranks = INIT_RANK[canon(cls)];
+  if (!ranks) return null;
+  for (const key of Object.keys(ranks)) {
+    const v = cfg[key];
+    const kind = initKind(v);
+    if (!kind) continue;
+    const rank = ranks[key];
+    if (kind === 'identity' && rank !== 2) {
+      return 'Identity matrix initializer can only be used for 2D matrices.';
+    }
+    if (kind === 'orthogonal' && rank < 2) {
+      return 'The tensor to initialize must be at least two-dimensional. Received: '
+        + 'shape=' + pyRepr(new Array(rank).fill(0)) + ' of rank ' + rank + '.';
+    }
+    if (kind === 'constant') {
+      const val = v && v.config ? v.config.value : undefined;
+      if (val !== undefined && typeof val !== 'number') {
+        return 'Only scalar values are supported for the Constant initializer. Received: value='
+          + pyRepr(val);
+      }
+    }
+  }
+  return null;
+}
+
 function objName(v) {
   if (v === null || v === undefined) return null;
   if (typeof v === 'string') return v;
@@ -1385,6 +1705,31 @@ function unknownLayerError(cls) {
     OBJECT_SCOPE_TAIL;
 }
 
+/* regularizers._check_penalty_number() is the ONLY place keras inspects a
+   number for finiteness.  Everything else a config can carry - momentum,
+   epsilon, a dropout rate, a GaussianNoise stddev, a Constant initializer -
+   is stored unread, which is why those models load with an inf in them and
+   an inf PENALTY does not. */
+function penaltyError(regCfg) {
+  if (!regCfg || typeof regCfg !== 'object') return null;
+  for (const k of ['l1', 'l2']) {
+    const v = regCfg[k];
+    /* L1L2.__init__ does `l1 = 0.0 if l1 is None else l1` first, so a null is
+       fine; _check_penalty_number() then rejects anything that is not a real
+       number, and separately anything non-finite. */
+    if (v === null || v === undefined) continue;
+    if (typeof v !== 'number') {
+      return 'Value: ' + (Array.isArray(v) ? pyRepr(v) : String(v))
+        + ' is not a valid regularization penalty number, expected an int or float value.';
+    }
+    if (!isFinite(v)) {
+      return 'Value: ' + pyNum(v) + ' is not a valid regularization penalty number, '
+        + 'an infinite number or NaN are not valid values.';
+    }
+  }
+  return null;
+}
+
 function unresolvableObject(cls, cfg) {
   const c = canon(cls);
   const unknown = (kind, n) => 'Unknown ' + kind + ': ' + pyRepr(String(n)) +
@@ -1393,18 +1738,34 @@ function unresolvableObject(cls, cfg) {
 
   /* an activation given as a name must resolve; given as an object it must be a
      layer keras knows (handled by the layer check above for nested classes) */
-  const a = cfg.activation;
-  if (typeof a === 'string' && a && KNOWN_ACTIVATIONS.indexOf(a) === -1) {
-    return unknown('activation function', a);
-  }
-  if (a && typeof a === 'object') {
-    const an = objName(a);
-    if (an && KNOWN_LAYERS.indexOf(canon(an)) === -1 && KNOWN_ACTIVATIONS.indexOf(String(an).toLowerCase()) === -1) {
-      return unknown('activation function', an);
+  /* One resolver for every activation slot.  An activation may be a name, a
+     nested activation LAYER, or the function object above; recurrent_activation
+     used to be tested only when it was a string, so an object there slipped
+     past the load and failed later in the report instead. */
+  const actError = (v) => {
+    if (v === null || v === undefined || v === '') return null;
+    /* An .h5 is loaded through legacy_serialization, which resolves an
+       activation by class_name against its own table.  The new-style function
+       object keeps the real name in `config` and leaves class_name as the
+       literal string 'function', for which that table has no entry. */
+    if (typeof v === 'object' && String(v.class_name) === 'function') {
+      return unknown('activation function', 'function');
     }
-  }
-  if (c === 'LSTM' && typeof cfg.recurrent_activation === 'string' && cfg.recurrent_activation && KNOWN_ACTIVATIONS.indexOf(cfg.recurrent_activation) === -1) {
-    return unknown('activation function', cfg.recurrent_activation);
+    const n = actName(v);
+    if (!n) return null;
+    if (KNOWN_ACTIVATIONS.indexOf(String(n)) !== -1) return null;
+    if (typeof v === 'object'
+      && (KNOWN_LAYERS.indexOf(canon(n)) !== -1
+        || KNOWN_ACTIVATIONS.indexOf(String(n).toLowerCase()) !== -1)) return null;
+    return unknown('activation function', n);
+  };
+  const ae = actError(cfg.activation);
+  if (ae) return ae;
+  const na = nestedActError(cfg.activation);
+  if (na) return na;
+  if (c === 'LSTM') {
+    const re = actError(cfg.recurrent_activation);
+    if (re) return re;
   }
 
   for (const key of INITIALIZER_KEYS) {
@@ -1412,12 +1773,22 @@ function unresolvableObject(cls, cfg) {
     if (n && KNOWN_INITIALIZERS.indexOf(n) === -1) {
       return unknown('initializer', n);
     }
+    const ia = initArgError(cfg[key]);
+    if (ia) return ia;
   }
   for (const key of REGULARIZER_KEYS) {
     const n = objName(cfg[key]);
     if (n && KNOWN_REGULARIZERS.indexOf(n) === -1) {
       return unknown('regularizer', n);
     }
+    const pen = penaltyError(cfg[key] && cfg[key].config);
+    if (pen) return pen;
+  }
+  /* ActivityRegularization builds an L1L2 out of its own two arguments, so the
+     same penalty check applies to the layer config itself. */
+  if (c === 'ActivityRegularization') {
+    const pen = penaltyError(cfg);
+    if (pen) return pen;
   }
   for (const key of CONSTRAINT_KEYS) {
     const n = objName(cfg[key]);
@@ -1434,8 +1805,27 @@ function unresolvableObject(cls, cfg) {
       return 'Cannot convert value ' + dt + ' to a TensorFlow DType.';
     }
   }
+  const dwe = dtypeWeightError(cls, cfg);
+  if (dwe) return dwe;
   if (dt && typeof dt === 'object') {
-    return 'Cannot convert value ' + pyRepr(dt) + ' to a TensorFlow DType.';
+    /* Layer._set_dtype_policy() has an explicit
+         elif isinstance(dtype, dict): self._dtype_policy = policy.deserialize(dtype)
+       branch, so a serialised keras 2.x Policy is accepted.  keras 3 writes a
+       DTypePolicy instead, which 2.15 cannot deserialise - that one still
+       fails, and so does any other object. */
+    const dn = objName(dt);
+    const inner = dt.config && dt.config.name;
+    /* InputLayer does NOT go through Layer._set_dtype_policy() for the tensor
+       it creates: __init__ hands `dtype` straight to backend.placeholder(),
+       which calls tf.as_dtype() on it, and that takes no dict at all. */
+    const policyOk = canon(cls) !== 'InputLayer'
+      && (dn === 'Policy' || dn === 'PolicyV1')
+      && typeof inner === 'string'
+      && (KNOWN_DTYPES.indexOf(inner) !== -1
+        || inner === 'mixed_float16' || inner === 'mixed_bfloat16');
+    if (!policyOk) {
+      return 'Cannot convert value ' + pyRepr(dt) + ' to a TensorFlow DType.';
+    }
   }
   return null;
 }
@@ -1494,6 +1884,79 @@ function duplicateLayerNameError(parsed) {
 
   return null;
 }
+
+/* The ADDITIONAL KERAS 2.15 LOAD VALIDATION block that used to sit here was
+ * never called - constructorFailure() reached straight past it, by design:
+ * its extra checks rejected models keras loads happily.  It is removed rather
+ * than left in place, because dead validation reads like live validation the
+ * next time someone debugs a verdict.  No check changes: nothing ever ran it.
+ * Its one live helper, isNumber(), now lives in outputShapeValidation(). */
+
+function outputShapeValidation(layer) {
+  /* Local copy of the helper of the same name in additionalKerasValidation().
+     It was previously referenced here while declared only inside that
+     function, so every model with a Dense layer threw a ReferenceError out
+     of constructorFailure().  checkModelCompatibility()'s catch treats any
+     throw as a load failure, so valid models were reported as
+     'Unable to Load Model' - or, when keras_version was not 2.15.0, as the
+     'Older or Newer version of Python or Libraries' message.  No check is
+     changed by this; it only lets the Dense branch below actually run. */
+  const isNumber = (v) => typeof v === 'number' && Number.isFinite(v);
+
+  const c = canon(layer.class_name);
+  const cfg = layer.config || {};
+  const input = layer.input_shape || [];
+  const output = layer.output_shape || [];
+
+  if (!Array.isArray(input) || !Array.isArray(output)) {
+    return null;
+  }
+
+  /*
+   * Convolution / pooling cannot produce a negative spatial dimension.
+   */
+  if (
+    CONV_RANK[c] ||
+    POOL_RANK[c]
+  ) {
+    for (const d of output) {
+      if (d !== null && d !== undefined && d < 0) {
+        return (
+          'Invalid output shape ' +
+          pyShape(output) +
+          ' generated from input shape ' +
+          pyShape(input) +
+          '.'
+        );
+      }
+    }
+  }
+
+  /*
+   * Dense must have a positive unit count.
+   */
+  /* Dense.__init__ stores `int(units)`, so anything int() accepts is fine -
+     a float, and a string of digits too ('16' loads as 16).  Only a value
+     int() refuses ('wide', None) or a negative count is a real failure. */
+  const intable = (v) => {
+    if (typeof v === 'number') return Number.isFinite(v);
+    if (typeof v === 'string') return /^[+-]?\d+$/.test(v.trim());
+    return false;
+  };
+  if (
+    c === 'Dense' &&
+    (!intable(cfg.units) || Number(cfg.units) < 0)
+  ) {
+    return (
+      'Invalid Dense output units: ' +
+      pyRepr(cfg.units) +
+      '.'
+    );
+  }
+
+  return null;
+}
+/* Sequential.from_config: deserialize each layer, then add() it, in order */
 /* Sequential.from_config: deserialize each layer, then add() it, in order */
 function constructorFailure(parsed) {
   const cfgRoot = parsed && parsed.config;
@@ -1503,8 +1966,20 @@ function constructorFailure(parsed) {
   const rawRoot = parsed && parsed.config_raw;
   const rawLayers = (rawRoot && rawRoot.config && rawRoot.config.layers) || [];
 
-  const seq = raw.map((l) => ({ class_name: l.class_name, config: l.config || {} }));
+  const seq = raw.map((l) => ({
+    class_name: l.class_name,
+    config: l.config || {}
+  }));
+
   inferShapes(seq, null);
+
+  for (let i = 0; i < seq.length; i++) {
+    const shapeError = outputShapeValidation(seq[i]);
+
+    if (shapeError) {
+      return shapeError;
+    }
+  }
 
   /* RNN layers override from_config() WITHOUT the try/except that
      Layer.from_config has, so an LSTM constructor error surfaces bare. */
@@ -1514,42 +1989,104 @@ function constructorFailure(parsed) {
     const layer = seq[idx];
     const cls = layer.class_name;
 
-    /* 0. an unknown layer CLASS is raised before construction, so it is not wrapped */
+    /* 0. Unknown layer class */
     const unknownLayer = unknownLayerError(cls);
-    if (unknownLayer) return unknownLayer;
 
-    /* an unknown activation / initializer / regularizer / constraint / dtype is
-       raised from inside cls(**config), so it wears the same envelope as a bad
-       argument value does */
-    const rawCfg = (rawLayers[idx] && rawLayers[idx].config) || null;
-    /* the signature is bound BEFORE the body runs, so a missing positional
-       argument beats every check inside __init__ */
-    const inner = missingRequiredError(cls, layer.config) /* 0c */
-      || unresolvableObject(cls, layer.config) /* 0b */
-      || initError(cls, layer.config, rawCfg); /* 1. cls(**config) */
-    if (inner) {
-      if (UNWRAPPED_FROM_CONFIG.indexOf(canon(cls)) !== -1) return inner;
-      const printable = rawCfg || layer.config;
-      return "Error when deserializing class '" + cls + "' using config=" + pyRepr(printable) + '.\n\nException encountered: ' + inner;
+    if (unknownLayer) {
+      return unknownLayer;
     }
-    const spec = inputSpecError(cls, layer.config, layer.input_shape); /* 2 */
-    if (spec) return spec;
-    const built = buildError(cls, layer.config, layer.input_shape); /* 3 */
-    if (built) return built;
+
+    const rawCfg =
+      (rawLayers[idx] && rawLayers[idx].config) || null;
+
+    /*
+     * Stage 1:
+     * Match the existing Python/Keras constructor checks.
+     */
+    const inner =
+      missingRequiredError(cls, layer.config)
+      || unresolvableObject(cls, layer.config)
+      || initError(cls, layer.config, rawCfg);
+
+    if (inner) {
+      if (UNWRAPPED_FROM_CONFIG.indexOf(canon(cls)) !== -1) {
+        return inner;
+      }
+
+      const printable = rawCfg || layer.config;
+
+      return "Error when deserializing class '" + cls +
+        "' using config=" + pyRepr(printable) +
+        '.\n\nException encountered: ' + inner;
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * Do NOT run additionalKerasValidation() here.
+     *
+     * Python's Model_Compatibility.py does not have this
+     * additional validation layer. Its extra checks were causing
+     * valid Keras models to be rejected by the JSX port.
+     */
+
+    /* Stage 2: InputSpec validation */
+    const spec = inputSpecError(
+      cls,
+      layer.config,
+      layer.input_shape
+    );
+
+    if (spec) {
+      return spec;
+    }
+
+    /* Stage 3: build / shape validation.  A float that survived __init__ is
+       only rejected once it reaches a shape or an op attribute, and that error
+       is raised from model.add(), outside the deserialize envelope. */
+    const tup = tupleArgError(cls, rawCfg);
+    if (tup) return tup;
+
+    const flt = floatArgError(cls, rawCfg);
+    if (flt) return flt;
+
+    const ish = initShapeError(cls, layer.config);
+    if (ish) return ish;
+
+    const built = buildError(
+      cls,
+      layer.config,
+      layer.input_shape
+    );
+
+    if (built) {
+      return built;
+    }
   }
 
-  /* 4. only once every layer is constructed and built does keras assign weights.
-     readWeights() returns null when the group is missing altogether, which is
-     where load_model_from_hdf5() raises on f["model_weights"]. */
+  /*
+   * Stage 4:
+   * Only after every layer has been constructed and built
+   * does Keras assign the saved weights.
+   */
   if (weights === null) {
     return "Unable to open object (object 'model_weights' doesn't exist)";
   }
+
   const wErr = weightsGroupError(seq, weights);
-  if (wErr) return wErr;
+
+  if (wErr) {
+    return wErr;
+  }
+
   for (const layer of seq) {
     const wt = weightError(layer, weights);
-    if (wt) return wt;
+
+    if (wt) {
+      return wt;
+    }
   }
+
   return null;
 }
 
@@ -1562,7 +2099,7 @@ function weightsGroupError(seq, weights) {
      the model's weighted layers BEFORE assigning anything, so a file that
      declares nothing and a model that expects weights is a count mismatch -
      bailing out here reported such a file as clean. */
-  const savedNames = Object.keys(weights);
+  const savedNames = Object.keys(weights).filter((k) => k !== '__missing__');
 
   /* Layer types we can size.  It is only used to spot a layer the config gained
      that the file has no weights for - never to decide that a layer is
@@ -1928,8 +2465,16 @@ function analyse(cfgRoot) {
       ops.push(goBackCheck(cfg.go_backwards));
       ops.push(statefulCheck(cfg.stateful));
       ops.push(unrollCheck(cfg.unroll));
-      ops.push(dropoutCheck(cfg.dropout === undefined ? 0.0 : cfg.dropout));
-      ops.push(recDropoutCheck(cfg.recurrent_dropout === undefined ? 0.0 : cfg.recurrent_dropout));
+      /* LSTMCell.__init__ stores min(1., max(0., dropout)); python's max()
+         returns its FIRST argument when the comparison is False, so a NaN
+         becomes 0.0 there and the backend reports 0.0, not nan. */
+      const clampRate = (v) => {
+        if (v === undefined) return 0.0;
+        if (typeof v !== 'number' || Number.isNaN(v)) return 0.0;
+        return Math.min(1.0, Math.max(0.0, v));
+      };
+      ops.push(dropoutCheck(clampRate(cfg.dropout)));
+      ops.push(recDropoutCheck(clampRate(cfg.recurrent_dropout)));
 
       /* --- BatchNormalization --------------------------------------------- */
     } else if (cls === 'BatchNormalization') {
@@ -2088,23 +2633,41 @@ function analyse(cfgRoot) {
      read the file -> load the model -> reject non-Sequential -> report,
    with any failure to read the graph falling through to failure_reason.      */
 function checkModelCompatibility(parsed) {
-  const cfgRoot = parsed.config;
-  const reject = (tip) => ({ layer_info: [null, null], layer_details: null, layers: [], tips: [tip] });
+  const cfgRoot = parsed && parsed.config;
+
+  const reject = (tip) => ({
+    layer_info: [null, null],
+    layer_details: null,
+    layers: [],
+    tips: [tip],
+  });
 
   try {
-    if (!cfgRoot || !cfgRoot.class_name) throw new Error('model_config missing or unreadable');
-
+    if (!cfgRoot || !cfgRoot.class_name) {
+      throw new Error('model_config missing or unreadable');
+    }
+    /* h5py raises before keras gets to look at the graph at all */
+    if (parsed.weights && parsed.weights.__missing__) {
+      return reject(
+        "Unable to Load Model : 'Unable to synchronously open object "
+        + "(component not found)'"
+      );
+    }
     /* `if type(model) != keras.models.Sequential` - the per-layer emulation
        below walks the layer list as a linear stack, which is meaningless for a
        DAG, so the model-type message must win before it runs. */
     if (canon(cfgRoot.class_name) !== 'Sequential') {
-      return reject(pyClassRepr(cfgRoot.class_name) + ' found, Only Sequential Model Types are Supported, Please change the Model Type.');
+      return reject(
+        pyClassRepr(cfgRoot.class_name) +
+        ' found, Only Sequential Model Types are Supported, Please change the Model Type.'
+      );
     }
 
 /* what the layer constructors do to these two strings, done once up front so
  * the load checks and the report both read the same value keras stored */
-normalizeLayerConfigs(cfgRoot.config && cfgRoot.config.layers);
-
+    normalizeLayerConfigs(
+      cfgRoot.config && cfgRoot.config.layers
+    );
 /* Sequential.from_config rejects duplicate layer names during load_model().
  * This is an additional load-level check; all existing compatibility checks
  * remain unchanged. */
